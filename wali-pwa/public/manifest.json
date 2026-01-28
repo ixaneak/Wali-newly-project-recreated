@@ -1,0 +1,25 @@
+{
+    "name": "Wali - Micro-assurance CI",
+    "short_name": "Wali",
+    "description": "Assurance micro accessible pour artisans et pharmacies en Côte d'Ivoire",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#16a34a",
+    "orientation": "portrait",
+    "lang": "fr",
+    "icons": [
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
