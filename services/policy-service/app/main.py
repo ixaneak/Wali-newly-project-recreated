@@ -6,7 +6,7 @@ import logging
 
 from app.core.config import get_settings
 from app.core.database import engine, Base
-from app.routes import policies
+from app.routes import policies, claims, photos
 
 # Configure logging
 logging.basicConfig(
@@ -37,6 +37,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(policies.router)
+app.include_router(claims.router)
+app.include_router(photos.router)
 
 # Health check endpoint
 @app.get("/health", status_code=status.HTTP_200_OK)
