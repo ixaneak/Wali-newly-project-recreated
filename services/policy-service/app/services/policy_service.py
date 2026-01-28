@@ -122,8 +122,13 @@ class PolicyService:
             premium_amount = daily_premium * 30
         
         # Create policy
+        # Generate simple policy number
+        import uuid
+        policy_number = f"POL-{str(uuid.uuid4())[:8].upper()}"
+
         policy = Policy(
             user_id=user_id,
+            policy_number=policy_number,
             coverage_type=coverage_type,
             coverage_details=coverage_details,
             premium_amount=premium_amount,

@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql://wali_user:password@localhost:5432/wali"
     database_replica_url: str | None = None
+    use_mock_db: bool = False
     
     # Redis
     redis_url: str = "redis://localhost:6379"

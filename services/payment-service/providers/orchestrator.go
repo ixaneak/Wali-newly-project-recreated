@@ -6,7 +6,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/sony/gobreaker"
 
@@ -21,7 +20,7 @@ const (
 
 type PaymentOrchestrator struct {
 	cfg            *config.Config
-	redis          *redis.Client
+	repo           models.PaymentRepository
 	orangeProvider *OrangeMoneyProvider
 	mtnProvider    *MTNMoMoProvider
 	waveProvider   *WaveProvider
@@ -32,7 +31,7 @@ type PaymentOrchestrator struct {
 	waveCB   *gobreaker.CircuitBreaker
 }
 
-func NewPaymentOrchestrator(cfg *config.Config, redisClient *redis.Client) *PaymentOrchestrator {
+func NewPaymentOrchestrator(cfg *config.Config, repo models.PaymentRepository) *PaymentOrchestrator {
 	settings := gobreaker.Settings{
 		Name:        "payment-provider",
 		MaxRequests: 3,
@@ -45,17 +44,12 @@ func NewPaymentOrchestrator(cfg *config.Config, redisClient *redis.Client) *Paym
 	}
 
 	orangeCB := gobreaker.NewCircuitBreaker(settings)
-	// orangeCB.Name = "orange-money"
-
 	mtnCB := gobreaker.NewCircuitBreaker(settings)
-	// mtnCB.Name = "mtn-momo"
-
 	waveCB := gobreaker.NewCircuitBreaker(settings)
-	// waveCB.Name = "wave"
 
 	return &PaymentOrchestrator{
 		cfg:            cfg,
-		redis:          redisClient,
+		repo:           repo,
 		orangeProvider: NewOrangeMoneyProvider(cfg),
 		mtnProvider:    NewMTNMoMoProvider(cfg),
 		waveProvider:   NewWaveProvider(cfg),
@@ -69,7 +63,8 @@ func NewPaymentOrchestrator(cfg *config.Config, redisClient *redis.Client) *Paym
 func (p *PaymentOrchestrator) ProcessPayment(ctx context.Context, request *models.PaymentRequest) (*models.PaymentResponse, error) {
 	// Idempotency check
 	if request.IdempotencyKey != "" {
-		if cached, err := p.checkIdempotency(ctx, request.IdempotencyKey); err == nil && cached != nil {
+		if cached, err := p.repo.GetIdempotency(ctx, request.IdempotencyKey); err == nil && cached != nil {
+			log.Printf("Idempotency hit for key: %s", request.IdempotencyKey)
 			return cached, nil
 		}
 	} else {
@@ -89,6 +84,9 @@ func (p *PaymentOrchestrator) ProcessPayment(ctx context.Context, request *model
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 	}
+
+	// Save initial transaction state
+	_ = p.repo.SaveTransaction(ctx, txn)
 
 	// Determine provider order based on user preference or default
 	providers := []models.PaymentProvider{models.ProviderOrange, models.ProviderMTN, models.ProviderWave}
@@ -110,6 +108,9 @@ func (p *PaymentOrchestrator) ProcessPayment(ctx context.Context, request *model
 
 		if err == nil {
 			// Success!
+			txn.Status = models.StatusSuccess
+			_ = p.repo.UpdateTransactionStatus(ctx, txn.ID, models.StatusSuccess)
+
 			response := &models.PaymentResponse{
 				TransactionID:  txn.ID,
 				TransactionRef: txn.TransactionRef,
@@ -120,7 +121,7 @@ func (p *PaymentOrchestrator) ProcessPayment(ctx context.Context, request *model
 			}
 
 			// Cache result for idempotency
-			p.cacheIdempotency(ctx, request.IdempotencyKey, response)
+			_ = p.repo.SaveIdempotency(ctx, request.IdempotencyKey, response, RedisIdempotencyTTL)
 
 			// Log audit trail
 			p.logAuditTrail(txn, provider, "success", nil)
@@ -134,6 +135,8 @@ func (p *PaymentOrchestrator) ProcessPayment(ctx context.Context, request *model
 	}
 
 	// All providers failed
+	txn.Status = models.StatusFailed
+	_ = p.repo.UpdateTransactionStatus(ctx, txn.ID, models.StatusFailed)
 	return nil, fmt.Errorf("all payment providers failed: %w", lastErr)
 }
 
@@ -190,38 +193,10 @@ func (p *PaymentOrchestrator) reorderProviders(preferred models.PaymentProvider,
 	return reordered
 }
 
-// Idempotency check
-func (p *PaymentOrchestrator) checkIdempotency(ctx context.Context, key string) (*models.PaymentResponse, error) {
-	redisKey := RedisIdempotencyPrefix + key
-
-	_, err := p.redis.Get(ctx, redisKey).Result()
-	if err == redis.Nil {
-		return nil, fmt.Errorf("not found")
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	var response models.PaymentResponse
-	// Simple string storage - in production, use JSON
-	log.Printf("Idempotency hit for key: %s", key)
-
-	return &response, nil
-}
-
-// Cache idempotency result
-func (p *PaymentOrchestrator) cacheIdempotency(ctx context.Context, key string, response *models.PaymentResponse) {
-	redisKey := RedisIdempotencyPrefix + key
-	p.redis.Set(ctx, redisKey, response.TransactionID, RedisIdempotencyTTL)
-}
-
 // Log audit trail for compliance
 func (p *PaymentOrchestrator) logAuditTrail(txn *models.Transaction, provider models.PaymentProvider, status string, err error) {
 	log.Printf("[AUDIT] Provider: %s, TxnRef: %s, Status: %s, Error: %v",
 		provider, txn.TransactionRef, status, err)
-
-	// In production, write to immutable financial_events table
-	// TODO: Insert into PostgreSQL financial_events table
 }
 
 // Verify payment status

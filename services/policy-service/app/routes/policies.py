@@ -216,3 +216,30 @@ def list_all_policies(
     
     policies = query.offset(skip).limit(limit).all()
     return [p.to_dict() for p in policies]
+
+
+@router.get("/{policy_id}/certificate")
+def get_policy_certificate(
+    policy_id: str,
+    db: Session = Depends(get_db)
+):
+    """Generate and download policy certificate."""
+    from fastapi.responses import Response
+    from app.services.pdf_service import generate_policy_certificate
+    
+    policy = PolicyService.get_policy(db, policy_id)
+    if not policy:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Policy not found"
+        )
+        
+    pdf_bytes = generate_policy_certificate(policy.to_dict())
+    
+    return Response(
+        content=bytes(pdf_bytes),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=policy_{policy.policy_number}.pdf"
+        }
+    )

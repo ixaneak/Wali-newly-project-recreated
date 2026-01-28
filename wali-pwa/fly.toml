@@ -1,0 +1,29 @@
+# fly.toml app configuration file generated for wali-pwa on 2026-01-27T19:59:52-05:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'wali-pwa'
+primary_region = 'cdg'
+
+[build]
+  dockerfile = 'Dockerfile'
+  [build.args]
+    NEXT_PUBLIC_POLICY_SERVICE_URL = "https://wali-policy-service.fly.dev"
+    NEXT_PUBLIC_CLAIMS_SERVICE_URL = "https://wali-claims-service.fly.dev"
+    NEXT_PUBLIC_PAYMENT_SERVICE_URL = "https://wali-payment-service.fly.dev"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 256

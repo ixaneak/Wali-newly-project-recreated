@@ -144,6 +144,29 @@ export default function DashboardPage() {
                                         <div>
                                             <h3 className="font-semibold text-gray-800">{policy.policy_number}</h3>
                                             <p className="text-sm text-gray-600 capitalize">{policy.coverage_type}</p>
+
+                                            {policy.status === 'active' && (
+                                                <button
+                                                    onClick={async () => {
+                                                        try {
+                                                            const response = await policyService.downloadCertificate(policy.id);
+                                                            const url = window.URL.createObjectURL(new Blob([response.data]));
+                                                            const link = document.createElement('a');
+                                                            link.href = url;
+                                                            link.setAttribute('download', `certificate_${policy.policy_number}.pdf`);
+                                                            document.body.appendChild(link);
+                                                            link.click();
+                                                            link.remove();
+                                                        } catch (e) {
+                                                            console.error("Failed to download certificate", e);
+                                                            alert("Erreur lors du téléchargement du certificat");
+                                                        }
+                                                    }}
+                                                    className="mt-2 text-sm text-green-600 hover:text-green-800 underline flex items-center"
+                                                >
+                                                    📄 Télécharger le certificat
+                                                </button>
+                                            )}
                                         </div>
                                         <div className="text-right">
                                             <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(policy.status)}`}>

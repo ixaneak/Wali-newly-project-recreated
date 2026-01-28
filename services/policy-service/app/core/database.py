@@ -38,7 +38,7 @@ def get_db():
     """Dependency for getting database sessions."""
     global USE_MOCK_DB
     
-    if USE_MOCK_DB:
+    if settings.use_mock_db or USE_MOCK_DB:
         yield MockSession()
         return
 

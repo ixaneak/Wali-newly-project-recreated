@@ -1,0 +1,14 @@
+﻿.next/types/validator.ts(42,39): error TS2307: Cannot find module '../../app/(artisan)/claims/new/page.js' or its corresponding type declarations.
+.next/types/validator.ts(51,39): error TS2307: Cannot find module '../../app/(artisan)/dashboard/page.js' or its corresponding type declarations.
+.next/types/validator.ts(60,39): error TS2307: Cannot find module '../../app/(artisan)/policies/new/page.js' or its corresponding type declarations.
+.next/types/validator.ts(78,39): error TS2307: Cannot find module '../../app/admin/claims-review/page.js' or its corresponding type declarations.
+.next/types/validator.ts(87,39): error TS2307: Cannot find module '../../app/admin/login/page.js' or its corresponding type declarations.
+_legacy_admin/claims-review/page.tsx(5,10): error TS2724: '"@/lib/api-client"' has no exported member named 'claimsService'. Did you mean 'apiService'?
+_legacy_artisan/claims/new/page.tsx(5,25): error TS2724: '"@/lib/api-client"' has no exported member named 'claimsService'. Did you mean 'apiService'?
+_legacy_artisan/claims/new/page.tsx(33,23): error TS2339: Property 'getUserPolicies' does not exist on type '{ createPolicy: (data: any) => Promise<AxiosResponse<any, any, {}>>; getPolicy: (id: string) => Promise<AxiosResponse<any, any, {}>>; }'.
+_legacy_artisan/claims/new/page.tsx(34,19): error TS7006: Parameter 'res' implicitly has an 'any' type.
+_legacy_artisan/claims/new/page.tsx(38,20): error TS7006: Parameter 'err' implicitly has an 'any' type.
+_legacy_artisan/dashboard/page.tsx(38,50): error TS2339: Property 'getUserPolicies' does not exist on type '{ createPolicy: (data: any) => Promise<AxiosResponse<any, any, {}>>; getPolicy: (id: string) => Promise<AxiosResponse<any, any, {}>>; }'.
+_legacy_artisan/dashboard/page.tsx(152,98): error TS2339: Property 'downloadCertificate' does not exist on type '{ createPolicy: (data: any) => Promise<AxiosResponse<any, any, {}>>; getPolicy: (id: string) => Promise<AxiosResponse<any, any, {}>>; }'.
+components/mobile/TransactionList.tsx(3,24): error TS2307: Cannot find module 'date-fns' or its corresponding type declarations.
+components/mobile/TransactionList.tsx(4,20): error TS2307: Cannot find module 'date-fns/locale' or its corresponding type declarations.

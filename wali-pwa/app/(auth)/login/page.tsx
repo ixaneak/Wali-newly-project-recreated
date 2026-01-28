@@ -49,7 +49,7 @@ export default function LoginPage() {
                 setStep(2);
                 setCountdown(300);
             } else {
-                setError(response.data.message);
+                setError(response.data.message || 'Erreur inconnue');
             }
         } catch (err: any) {
             setError('Erreur de connexion au serveur.');
@@ -69,10 +69,13 @@ export default function LoginPage() {
 
             if (response.data.success) {
                 localStorage.setItem('user_phone', fullPhone);
-                localStorage.setItem('user_id', response.data.user_id);
+                localStorage.setItem('user_id', response.data.user_id || '');
+                if (response.data.token) {
+                    localStorage.setItem('auth_token', response.data.token);
+                }
                 router.push('/dashboard');
             } else {
-                setError(response.data.message);
+                setError(response.data.message || 'Erreur inconnue');
             }
         } catch (err: any) {
             setError('Code incorrect ou expiré.');
@@ -214,9 +217,9 @@ export default function LoginPage() {
                                 <div className="text-center space-y-2">
                                     <p className="text-xs text-gray-400 leading-relaxed">
                                         En vous connectant, vous acceptez nos{' '}
-                                        <a href="#" className="text-emerald-600 font-medium hover:underline">conditions d'utilisation</a>
+                                        <a href="/terms" className="text-emerald-600 font-medium hover:underline">conditions d'utilisation</a>
                                         {' '}et notre{' '}
-                                        <a href="#" className="text-emerald-600 font-medium hover:underline">politique de confidentialité</a>
+                                        <a href="/privacy" className="text-emerald-600 font-medium hover:underline">politique de confidentialité</a>
                                     </p>
                                 </div>
                             </form>
@@ -291,7 +294,7 @@ export default function LoginPage() {
                 <div className="mt-8 text-center space-y-2">
                     <p className="text-emerald-100 text-sm">
                         Besoin d'aide ?{' '}
-                        <a href="#" className="text-white hover:underline font-medium">Contactez-nous</a>
+                        <a href="/support" className="text-white hover:underline font-medium">Contactez-nous</a>
                     </p>
                     <p className="text-emerald-200/60 text-xs">© 2025 Wali. Tous droits réservés.</p>
                 </div>
