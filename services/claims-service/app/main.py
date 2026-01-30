@@ -6,7 +6,7 @@ import logging
 
 from app.core.config import get_settings
 from app.core.database import engine, Base
-from app.routes import claims
+from app.routes import claims, photos
 
 # Configure logging
 logging.basicConfig(
@@ -29,7 +29,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,6 +37,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(claims.router)
+app.include_router(photos.router)
 
 # Health check endpoint
 @app.get("/health", status_code=status.HTTP_200_OK)

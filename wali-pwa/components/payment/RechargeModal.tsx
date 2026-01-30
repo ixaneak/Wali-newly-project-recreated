@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { X, Loader2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
-import { paymentService } from "@/lib/api-client";
+import { paymentApi as paymentService } from "@/lib/api-client";
 
 interface RechargeModalProps {
     isOpen: boolean;
@@ -84,8 +84,8 @@ export default function RechargeModal({ isOpen, onClose, userId, userPhone }: Re
                                 key={p.id}
                                 onClick={() => setProvider(p.id)}
                                 className={`relative p-3 rounded-xl border-2 transition flex flex-col items-center gap-1 ${provider === p.id
-                                        ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20"
-                                        : "border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800"
+                                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20"
+                                    : "border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800"
                                     }`}
                             >
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${p.color} ${p.text} font-bold text-xs`}>

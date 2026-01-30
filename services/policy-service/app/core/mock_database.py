@@ -93,7 +93,10 @@ class MockQuery:
 # Serialization Helpers
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
+    from datetime import date
     if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, date):
         return obj.isoformat()
     if isinstance(obj, uuid.UUID):
         return str(obj)

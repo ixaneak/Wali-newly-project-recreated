@@ -25,9 +25,9 @@ function PlanDetailsContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const tier = (searchParams.get('tier') as PlanTier) || 'demarrage';
-    const plan = PLAN_CONFIG[tier];
+    const plan = PLAN_CONFIG[tier] || PLAN_CONFIG['demarrage'] || Object.values(PLAN_CONFIG)[0];
 
-    const Icon = IconComponent[plan.icon];
+    const Icon = plan?.icon ? IconComponent[plan.icon as keyof typeof IconComponent] : null;
 
     if (!plan) return <div className="p-6 text-center">Plan not found</div>;
 
@@ -44,7 +44,7 @@ function PlanDetailsContent() {
 
                 <div className="flex flex-col items-center text-center">
                     <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-4 bg-white/60 dark:bg-black/20 ${plan.color} shadow-sm backdrop-blur-sm`}>
-                        <Icon size={40} strokeWidth={2} />
+                        {Icon && <Icon size={40} strokeWidth={2} />}
                     </div>
 
                     <h1 className={`text-2xl font-bold mb-1 ${plan.color}`}>

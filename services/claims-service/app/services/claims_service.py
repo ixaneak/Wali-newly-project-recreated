@@ -216,3 +216,50 @@ class ClaimsService:
             Claim.fraud_score.desc(),  # High fraud scores first
             Claim.created_at.asc()
         ).limit(limit).all()
+
+    @staticmethod
+    def get_all_claims(
+        db: Session,
+        status: Optional[ClaimStatus] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[Claim]:
+        """Get all claims for admin review with filtering."""
+        query = db.query(Claim)
+        
+        if status:
+            query = query.filter(Claim.status == status)
+        
+        if start_date:
+            query = query.filter(Claim.created_at >= start_date)
+            
+        if end_date:
+            query = query.filter(Claim.created_at <= end_date)
+            
+        return query.order_by(Claim.created_at.desc()).offset(skip).limit(limit).all()
+
+    @staticmethod
+    def get_admin_stats(db: Session) -> dict:
+        """Get claim counts by status for admin dashboard."""
+        from sqlalchemy import func
+        stats = db.query(Claim.status, func.count(Claim.id)).group_by(Claim.status).all()
+        
+        result = {
+            "total": db.query(Claim).count(),
+            "submitted": 0,
+            "under_review": 0,
+            "approved": 0,
+            "rejected": 0,
+            "paid": 0
+        }
+        
+        for status_val, count in stats:
+            if status_val in result:
+                result[status_val] = count
+                
+        # Calculate pending as sum of submitted and under_review
+        result["pending"] = result["submitted"] + result["under_review"]
+        
+        return result

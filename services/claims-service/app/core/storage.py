@@ -16,14 +16,22 @@ class MinIOClient:
     """MinIO client for uploading and managing claim images."""
     
     def __init__(self):
-        self.client = Minio(
-            settings.minio_endpoint,
-            access_key=settings.minio_access_key,
-            secret_key=settings.minio_secret_key,
-            secure=settings.minio_secure
-        )
-        self.bucket_name = settings.minio_bucket_name
-        self._ensure_bucket_exists()
+        self.healthy = False
+        try:
+            self.client = Minio(
+                settings.minio_endpoint,
+                access_key=settings.minio_access_key,
+                secret_key=settings.minio_secret_key,
+                secure=settings.minio_secure
+            )
+            self.bucket_name = settings.minio_bucket_name
+            self._ensure_bucket_exists()
+            self.healthy = True
+        except Exception as e:
+            logger.error(f"MinIO initialization failed: {e}")
+            if settings.environment == "production":
+                raise
+            logger.warning("Continuing without MinIO storage (MOCK MODE)")
     
     def _ensure_bucket_exists(self):
         """Create bucket if it doesn't exist."""
@@ -54,6 +62,10 @@ class MinIOClient:
         """
         object_name = f"claims/{claim_id}/{uuid.uuid4()}{file_extension}"
         
+        if not self.healthy:
+            logger.warning(f"Mock upload: {object_name}")
+            return object_name
+            
         try:
             self.client.put_object(
                 self.bucket_name,
@@ -64,7 +76,7 @@ class MinIOClient:
             )
             logger.info(f"Uploaded image to MinIO: {object_name}")
             return object_name
-        except S3Error as e:
+        except Exception as e:
             logger.error(f"Error uploading image: {e}")
             raise
     
@@ -79,6 +91,9 @@ class MinIOClient:
         Returns:
             Presigned URL string
         """
+        if not self.healthy:
+            return f"https://via.placeholder.com/800?text={object_name}"
+            
         try:
             url = self.client.presigned_get_object(
                 self.bucket_name,
@@ -86,7 +101,7 @@ class MinIOClient:
                 expires=timedelta(hours=expires_hours)
             )
             return url
-        except S3Error as e:
+        except Exception as e:
             logger.error(f"Error generating presigned URL: {e}")
             raise
     
@@ -99,13 +114,14 @@ class MinIOClient:
             logger.error(f"Error deleting image: {e}")
             raise
     
-    def list_claim_images(self, claim_id: str) -> list[str]:
-        """List all images for a specific claim."""
+        if not self.healthy:
+            return []
+            
         prefix = f"claims/{claim_id}/"
         try:
             objects = self.client.list_objects(self.bucket_name, prefix=prefix)
             return [obj.object_name for obj in objects]
-        except S3Error as e:
+        except Exception as e:
             logger.error(f"Error listing images: {e}")
             return []
 

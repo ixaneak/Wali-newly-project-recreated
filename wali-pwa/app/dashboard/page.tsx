@@ -9,9 +9,10 @@ import HealthTipsCarousel from '@/components/mobile/HealthTipsCarousel';
 import PlanCard from '@/components/dashboard/PlanCard';
 import { useDashboard } from '@/hooks/useMobileData';
 import { toast } from 'sonner';
-import Skeleton from '@/components/ui/skeleton';
+import { useRouter } from 'next/navigation';
 
 export default function Dashboard() {
+    const router = useRouter();
     const { data, loading, error } = useDashboard();
     const [isRechargeOpen, setIsRechargeOpen] = useState(false);
 
@@ -44,7 +45,10 @@ export default function Dashboard() {
                         <span className="text-emerald-700 dark:text-emerald-500">{data.user.name.split(' ')[0]}</span>
                     </h1>
                 </div>
-                <button className="relative bg-white dark:bg-slate-900 p-2.5 rounded-full shadow-sm border border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800 transition">
+                <button
+                    onClick={() => router.push('/dashboard/notifications/inbox')}
+                    className="relative bg-white dark:bg-slate-900 p-2.5 rounded-full shadow-sm border border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800 transition"
+                >
                     <Bell className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                     {data.notifications > 0 && (
                         <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-white dark:border-slate-900 rounded-full"></span>
@@ -74,7 +78,7 @@ export default function Dashboard() {
             {/* Quick Actions */}
             <div className="grid grid-cols-2 gap-4 mb-8">
                 <button
-                    onClick={() => toast.info("Scan QR Code")}
+                    onClick={() => router.push('/dashboard/card')}
                     className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 flex flex-col items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-800 transition group"
                 >
                     <div className="bg-emerald-50 dark:bg-emerald-900/30 p-3 rounded-full group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/50 transition">

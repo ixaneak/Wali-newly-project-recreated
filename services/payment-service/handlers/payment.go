@@ -5,9 +5,25 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"bytes"
+	"encoding/json"
+	"log"
+
 	"wali-payment-service/models"
 	"wali-payment-service/providers"
 )
+
+const ComplianceServiceURL = "http://localhost:8002/api/v1/compliance/events"
+
+type ComplianceEvent struct {
+	EventType     string `json:"event_type"`
+	Amount        int    `json:"amount"`
+	Currency      string `json:"currency"`
+	UserID        string `json:"user_id"`
+	PolicyID      string `json:"policy_id"`
+	TransactionID string `json:"transaction_id"`
+	Provider      string `json:"provider"`
+}
 
 type PaymentHandler struct {
 	orchestrator *providers.PaymentOrchestrator
@@ -46,7 +62,35 @@ func (h *PaymentHandler) InitiatePayment(c *gin.Context) {
 		return
 	}
 
+	// Log to Compliance Service (Async or Sync based on requirements)
+	// Ideally this should be robust (queue), but direct call for MVP
+	go h.logToCompliance(models.PaymentProvider(request.Provider), request, response.TransactionRef)
+
 	c.JSON(http.StatusCreated, response)
+}
+
+func (h *PaymentHandler) logToCompliance(provider models.PaymentProvider, req models.PaymentRequest, txID string) {
+	event := ComplianceEvent{
+		EventType:     "premium_collected", // Assuming all payments are premiums for now
+		Amount:        int(req.Amount),
+		Currency:      "XOF",
+		UserID:        "user-uuid-placeholder", // In real app, get from Context/Auth
+		PolicyID:      req.PolicyID,
+		TransactionID: txID,
+		Provider:      string(provider),
+	}
+
+	jsonData, _ := json.Marshal(event)
+	resp, err := http.Post(ComplianceServiceURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Printf("Failed to log compliance event: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("Compliance service returned non-OK status: %d", resp.StatusCode)
+	}
 }
 
 // GET /api/v1/payments/verify/:transaction_ref

@@ -63,6 +63,12 @@ export default function ProfilePage() {
                     onClick: () => router.push('/dashboard/profile/edit')
                 },
                 {
+                    icon: (props: any) => <User {...props} />, // Using User icon for family
+                    label: "Ma Famille",
+                    value: "2 membres",
+                    onClick: () => router.push('/dashboard/family')
+                },
+                {
                     icon: HelpCircle,
                     label: "Aide et support",
                     value: "",

@@ -4,7 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from app.core.config import get_settings
-from app.routes import compliance
+from app.core.database import engine, Base
+from app.routes import compliance, dashboard
+from app.models.financial_event import FinancialEvent
+from app.models.tax_exemption import TaxExemptionTracking
+
+# Initialize database tables
+Base.metadata.create_all(bind=engine)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,13 +28,14 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(compliance.router)
+app.include_router(dashboard.router)
 
 @app.get("/health")
 def health_check():

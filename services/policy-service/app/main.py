@@ -6,39 +6,15 @@ import logging
 
 from app.core.config import get_settings
 from app.core.database import engine, Base
-from app.routes import policies, claims, photos
+from app.routes import policies, claims, photos, admin_users, compliance
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# ... (logging config) ...
 
-settings = get_settings()
-
-# Create FastAPI app
-app = FastAPI(
-    title="Wali Policy Service",
-    description="Micro-insurance policy management service for Côte d'Ivoire",
-    version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
-)
-
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Include routers
 app.include_router(policies.router)
 app.include_router(claims.router)
 app.include_router(photos.router)
+app.include_router(admin_users.router)
+app.include_router(compliance.router)
 
 # Health check endpoint
 @app.get("/health", status_code=status.HTTP_200_OK)

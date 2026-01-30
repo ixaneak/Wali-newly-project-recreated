@@ -1,26 +1,60 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Calendar, DollarSign, FileText, Image as ImageIcon, Phone } from 'lucide-react';
-import { MOCK_CLAIMS } from '@/lib/mock-claims';
-import { CLAIM_TYPE_CONFIG } from '@/types/claims';
+import { CLAIM_TYPE_CONFIG, ClaimType } from '@/types/claims';
 import ClaimStatusBadge from '@/components/claims/ClaimStatusBadge';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { claimsService } from '@/lib/api-client';
+import type { ClaimData } from '@/lib/api-client';
 
 export default function ClaimDetailsPage() {
     const router = useRouter();
     const params = useParams();
     const claimId = params?.id as string;
 
-    const claim = MOCK_CLAIMS.find(c => c.id === claimId);
+    const [claim, setClaim] = useState<ClaimData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    if (!claim) {
+    useEffect(() => {
+        const fetchClaim = async () => {
+            try {
+                setLoading(true);
+                const data = await claimsService.getClaimById(claimId);
+                setClaim(data);
+            } catch (err: any) {
+                console.error('Error fetching claim:', err);
+                setError(err?.response?.data?.detail || 'Failed to load claim');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (claimId) {
+            fetchClaim();
+        }
+    }, [claimId]);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center p-6">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600 dark:text-gray-400">Chargement...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error || !claim) {
         return (
             <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center p-6">
                 <div className="text-center">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Claim non trouvé</h2>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
                     <button
                         onClick={() => router.back()}
                         className="text-emerald-600 hover:text-emerald-700"
@@ -32,10 +66,10 @@ export default function ClaimDetailsPage() {
         );
     }
 
-    const typeConfig = CLAIM_TYPE_CONFIG[claim.type];
+    const typeConfig = CLAIM_TYPE_CONFIG[claim.claim_type as ClaimType];
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-slate-950 pb-24">
+        <div className="min-h-screen bg-gray-50 dark:bg-slate-950 pb-32">
             {/* Header */}
             <div className="p-6 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800">
                 <button
@@ -80,12 +114,12 @@ export default function ClaimDetailsPage() {
                         <DetailRow
                             icon={Calendar}
                             label="Date du sinistre"
-                            value={format(new Date(claim.incidentDate), 'dd MMMM yyyy', { locale: fr })}
+                            value={format(new Date(claim.incident_date), 'dd MMMM yyyy', { locale: fr })}
                         />
                         <DetailRow
                             icon={FileText}
                             label="Date de soumission"
-                            value={format(new Date(claim.createdAt), 'dd MMMM yyyy à HH:mm', { locale: fr })}
+                            value={format(new Date(claim.created_at), 'dd MMMM yyyy à HH:mm', { locale: fr })}
                         />
                         <DetailRow
                             icon={FileText}
@@ -127,7 +161,7 @@ export default function ClaimDetailsPage() {
                 )}
 
                 {/* Review Notes */}
-                {claim.reviewNotes && (
+                {claim.review_notes && (
                     <div className={`rounded-2xl p-6 border ${claim.status === 'rejected'
                         ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
                         : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'
@@ -143,11 +177,11 @@ export default function ClaimDetailsPage() {
                                 ? 'text-red-700 dark:text-red-300'
                                 : 'text-emerald-700 dark:text-emerald-300'
                         }>
-                            {claim.reviewNotes}
+                            {claim.review_notes}
                         </p>
-                        {claim.reviewedAt && (
+                        {claim.reviewed_at && (
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                Révisé le {format(new Date(claim.reviewedAt), 'dd MMM yyyy', { locale: fr })}
+                                Révisé le {format(new Date(claim.reviewed_at), 'dd MMM yyyy', { locale: fr })}
                             </p>
                         )}
                     </div>

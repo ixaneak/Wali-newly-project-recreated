@@ -42,13 +42,13 @@ function UpgradeContent() {
                     </div>
                 ) : (
                     upgradeOptions.map(tier => {
-                        const plan = PLAN_CONFIG[tier];
-                        const Icon = {
+                        const plan = PLAN_CONFIG[tier] || PLAN_CONFIG['demarrage'] || Object.values(PLAN_CONFIG)[0];
+                        const Icon = plan?.icon ? ({
                             demarrage: Star,
                             classique: Shield,
                             pro: ShieldCheck,
                             cooperative: Users
-                        }[tier];
+                        }[tier] || Star) : Star;
 
                         return (
                             <div
@@ -64,7 +64,7 @@ function UpgradeContent() {
 
                                 <div className="flex items-start gap-4 mb-4">
                                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gray-50 dark:bg-slate-800 ${plan.color} group-hover:scale-110 transition`}>
-                                        <Icon size={24} />
+                                        {Icon && <Icon size={24} />}
                                     </div>
                                     <div className="flex-1">
                                         <h3 className="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2">

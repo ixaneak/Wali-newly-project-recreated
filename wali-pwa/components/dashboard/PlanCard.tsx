@@ -28,8 +28,8 @@ export default function PlanCard({
     language = 'fr'
 }: PlanCardProps) {
     const router = useRouter();
-    const plan = PLAN_CONFIG[currentTier];
-    const Icon = IconComponent[plan.icon];
+    const plan = PLAN_CONFIG[currentTier] || PLAN_CONFIG['demarrage'] || Object.values(PLAN_CONFIG)[0];
+    const Icon = plan?.icon ? IconComponent[plan.icon as keyof typeof IconComponent] : null;
 
     const isExpired = status === 'expired';
     const isPending = status === 'pending_payment';
@@ -59,7 +59,7 @@ export default function PlanCard({
 
                 {/* Icon */}
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center mr-3 bg-white/50 dark:bg-black/10 ${plan.color}`}>
-                    <Icon size={24} strokeWidth={2.5} />
+                    {Icon && <Icon size={24} strokeWidth={2.5} />}
                 </div>
 
                 {/* Content */}

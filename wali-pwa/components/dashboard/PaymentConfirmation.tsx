@@ -4,7 +4,7 @@ import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, XCircle, Loader2, CreditCard, Shield } from 'lucide-react';
 import { PLAN_CONFIG, PlanTier } from '../../types/plans';
-import { paymentService } from '@/lib/api-client';
+import { paymentApi as paymentService } from "@/lib/api-client";
 import { toast } from 'sonner';
 
 type PaymentStatus = 'confirming' | 'processing' | 'success' | 'error';
@@ -20,7 +20,7 @@ function PaymentConfirmationContent() {
     const [paymentMethod, setPaymentMethod] = useState<'orange' | 'mtn' | 'wave'>('orange');
     const [phoneNumber, setPhoneNumber] = useState('');
 
-    const plan = PLAN_CONFIG[tier];
+    const plan = PLAN_CONFIG[tier] || PLAN_CONFIG['demarrage'] || Object.values(PLAN_CONFIG)[0];
 
     const handlePayment = async () => {
         setStatus('processing');
@@ -94,8 +94,8 @@ function PaymentConfirmationContent() {
                                         key={p.id}
                                         onClick={() => setPaymentMethod(p.id as 'orange' | 'mtn' | 'wave')}
                                         className={`relative p-3 rounded-xl border-2 transition flex flex-col items-center gap-1 ${paymentMethod === p.id
-                                                ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
-                                                : 'border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800'
+                                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                                            : 'border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800'
                                             }`}
                                     >
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${p.color} ${p.text} font-bold text-xs`}>

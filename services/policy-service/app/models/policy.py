@@ -90,6 +90,12 @@ class Policy(Base):
         }
 
 
+class KYCStatus(str, enum.Enum):
+    VERIFIED = "verified"
+    PENDING = "pending"
+    REJECTED = "rejected"
+
+
 class User(Base):
     """User model (simplified for policy service)."""
     __tablename__ = "users"
@@ -97,5 +103,20 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     phone = Column(String(20), unique=True, nullable=False)
     role = Column(Enum(UserRole), nullable=False)
+    name = Column(String(100))
+    kyc_status = Column(Enum(KYCStatus), default=KYCStatus.PENDING)
+    avatar_url = Column(String(255))
     region = Column(String(100))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "phone": self.phone,
+            "role": self.role.value,
+            "name": self.name,
+            "kyc_status": self.kyc_status.value,
+            "avatar_url": self.avatar_url,
+            "region": self.region,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }

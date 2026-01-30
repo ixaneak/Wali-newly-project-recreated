@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Heart, AlertTriangle, Home, FileText, Camera, X, Check, Loader2 } from 'lucide-react';
 import { ClaimType, CLAIM_TYPE_CONFIG } from '@/types/claims';
+import { claimsService } from '@/lib/api-client';
 import imageCompression from 'browser-image-compression';
 import { toast } from 'sonner';
 
@@ -67,13 +68,93 @@ export default function NewClaimPage() {
     };
 
     const handleSubmit = async () => {
+        if (!claimType) return;
+
         setSubmitting(true);
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        try {
+            // Step 1: Upload photos to the backend if any exist
+            let photoUrls: string[] = [];
 
-        toast.success('Claim soumis avec succès!');
-        router.push('/dashboard/claims');
+            if (photos.length > 0) {
+                toast.info('Téléchargement des photos...');
+
+                // Convert base64 photos back to File objects for upload
+                const photoFiles = await Promise.all(
+                    photos.map(async (base64Photo, index) => {
+                        const response = await fetch(base64Photo);
+                        const blob = await response.blob();
+                        return new File([blob], `photo-${index + 1}.jpg`, { type: 'image/jpeg' });
+                    })
+                );
+
+                // Upload photos to backend
+                try {
+                    photoUrls = await claimsService.uploadMultiplePhotos(photoFiles);
+                    toast.success(`${photoUrls.length} photo${photoUrls.length > 1 ? 's' : ''} téléchargée${photoUrls.length > 1 ? 's' : ''}`);
+                } catch (error) {
+                    console.error('Photo upload error:', error);
+                    toast.error('Erreur lors du téléchargement des photos. Utilisation de photos locales...');
+                    // Fallback to base64 photos if upload fails
+                    photoUrls = photos;
+                }
+            }
+
+            // Step 2: Submit claim with photo URLs
+            const claimData = {
+                user_id: "00000000-0000-0000-0000-000000000000", // Default test ID
+                policy_id: "00000000-0000-0000-0000-000000000000", // Default test ID
+                claim_type: claimType,
+                amount: parseFloat(amount),
+                description,
+                incident_date: incidentDate,
+                photos: photoUrls,
+            };
+
+            console.log('Submitting claim data:', claimData);
+            toast.info('Soumission du claim...');
+            const createdClaim = await claimsService.submitClaim(claimData);
+
+            toast.success('Claim soumis avec succès!');
+            console.log('Claim created:', createdClaim);
+
+            // Redirect to claims list after a brief delay
+            setTimeout(() => {
+                router.push('/dashboard/claims');
+            }, 500);
+
+        } catch (error: any) {
+            console.error('Claim submission error:', error);
+            console.error('Error response:', error?.response?.data);
+
+            // Extract error message from various formats
+            let errorMessage = 'Une erreur est survenue';
+
+            if (error?.response?.data) {
+                const data = error.response.data;
+
+                // FastAPI validation errors (array format)
+                if (Array.isArray(data.detail)) {
+                    errorMessage = data.detail.map((err: any) =>
+                        `${err.loc?.join('.')}: ${err.msg}`
+                    ).join(', ');
+                }
+                // String detail
+                else if (typeof data.detail === 'string') {
+                    errorMessage = data.detail;
+                }
+                // Object detail
+                else if (typeof data.detail === 'object') {
+                    errorMessage = JSON.stringify(data.detail);
+                }
+            } else if (error?.message) {
+                errorMessage = error.message;
+            }
+
+            toast.error(`Erreur: ${errorMessage}`);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const canProceedFromType = claimType !== null;
@@ -81,7 +162,7 @@ export default function NewClaimPage() {
     const canSubmit = canProceedFromType && canProceedFromDetails;
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-slate-950 pb-24">
+        <div className="min-h-screen bg-gray-50 dark:bg-slate-950 pb-32">
             {/* Header */}
             <div className="p-6 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800">
                 <button
@@ -101,9 +182,9 @@ export default function NewClaimPage() {
                     {(['type', 'details', 'photos', 'review'] as Step[]).map((s, index) => (
                         <React.Fragment key={s}>
                             <div className={`h-1.5 flex-1 rounded-full transition ${step === s ? 'bg-emerald-600' :
-                                    (s === 'type' || (s === 'details' && canProceedFromType) || (s === 'photos' && canProceedFromDetails))
-                                        ? 'bg-emerald-200 dark:bg-emerald-900/40'
-                                        : 'bg-gray-200 dark:bg-slate-800'
+                                (s === 'type' || (s === 'details' && canProceedFromType) || (s === 'photos' && canProceedFromDetails))
+                                    ? 'bg-emerald-200 dark:bg-emerald-900/40'
+                                    : 'bg-gray-200 dark:bg-slate-800'
                                 }`} />
                         </React.Fragment>
                     ))}
@@ -128,8 +209,8 @@ export default function NewClaimPage() {
                                     key={type}
                                     onClick={() => setClaimType(type)}
                                     className={`w-full p-4 rounded-2xl border-2 transition text-left ${claimType === type
-                                            ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20'
-                                            : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-gray-300 dark:hover:border-slate-600'
+                                        ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20'
+                                        : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-gray-300 dark:hover:border-slate-600'
                                         }`}
                                 >
                                     <div className="flex items-center gap-3">
@@ -289,7 +370,7 @@ export default function NewClaimPage() {
             </div>
 
             {/* Footer Actions */}
-            <div className="fixed bottom-0 left-0 right-0 p-6 bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800">
+            <div className="fixed bottom-0 left-0 right-0 px-6 pt-4 pb-12 bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 shadow-lg">
                 <div className="flex gap-3">
                     {step !== 'type' && (
                         <button

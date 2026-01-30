@@ -10,6 +10,12 @@ export const metadata = {
     keywords: ['assurance', 'micro-assurance', 'artisan', 'Côte d\'Ivoire', 'santé', 'équipement', 'mobile money', 'Abidjan'],
     authors: [{ name: 'Wali Team' }],
     viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
+    manifest: '/manifest.json',
+    appleWebApp: {
+        capable: true,
+        statusBarStyle: 'default',
+        title: 'Wali',
+    },
     openGraph: {
         title: 'Wali - Protégez votre activité et votre santé',
         description: 'Assurance accessible pour tous les artisans. À partir de 150 FCFA/mois.',

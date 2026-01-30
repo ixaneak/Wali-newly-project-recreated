@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 import uuid
 
 from app.core.database import get_db
-from app.models.claim import Claim
+from app.models import Claim, Policy, PolicyStatus
 from app.core.auth import get_current_user
 
 router = APIRouter(prefix="/api/v1/claims", tags=["claims"])
@@ -36,6 +36,8 @@ class ClaimResponse(BaseModel):
     photos: Optional[List[str]]
     created_at: str
     updated_at: Optional[str]
+    reviewed_at: Optional[str]
+    reviewed_by: Optional[str]
 
     class Config:
         from_attributes = True
@@ -53,11 +55,17 @@ async def create_claim(
     Validates user has active policy and claim amount is within coverage.
     """
     try:
+        # Check for active policy
+        policy = db.query(Policy).filter(
+            Policy.user_id == uuid.UUID(current_user["user_id"]),
+            Policy.status == PolicyStatus.ACTIVE
+        ).first()
+
         # Create claim
         new_claim = Claim(
             id=uuid.uuid4(),
             user_id=uuid.UUID(current_user["user_id"]),
-            policy_id=None,  # TODO: Link to user's active policy
+            policy_id=policy.id if policy else None,
             claim_type=claim_data.claim_type,
             amount=claim_data.amount,
             description=claim_data.description,
@@ -153,24 +161,41 @@ async def get_all_claims(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
     status_filter: Optional[str] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
     skip: int = 0,
     limit: int = 100
 ):
     """
     Admin endpoint: Get all claims with pagination.
-    
-    TODO: Add admin role check
     """
+    if current_user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required"
+        )
+
     try:
         query = db.query(Claim)
         
         if status_filter:
             query = query.filter(Claim.status == status_filter)
+
+        if start_date:
+            query = query.filter(Claim.created_at >= start_date)
+
+        if end_date:
+            # Add one day to include the end date fully if using datetime, or just use date comparison
+            # Assuming created_at is datetime, we need to compare properly.
+            # If created_at is string/datetime, simple comparison works if start_date is cast comparable.
+            query = query.filter(Claim.created_at <= end_date)
         
         claims = query.order_by(Claim.created_at.desc()).offset(skip).limit(limit).all()
         
         return [ClaimResponse(**claim.to_dict()) for claim in claims]
     
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -187,9 +212,13 @@ async def update_claim_status(
 ):
     """
     Admin endpoint: Update claim status and add review notes.
-    
-    TODO: Add admin role check
     """
+    if current_user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required"
+        )
+
     try:
         claim = db.query(Claim).filter(Claim.id == uuid.UUID(claim_id)).first()
         

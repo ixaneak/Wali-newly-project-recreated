@@ -2,46 +2,39 @@
 
 import { useEffect, useState } from "react";
 import { Heart, ChevronRight } from "lucide-react";
-
-const TIPS = [
-    {
-        id: 1,
-        title: "Hydratation",
-        text: "Buvez au moins 1,5L d'eau par jour pour rester en forme.",
-        color: "bg-blue-100 dark:bg-blue-900/30",
-        textColor: "text-blue-700 dark:text-blue-300",
-        iconColor: "text-blue-500",
-    },
-    {
-        id: 2,
-        title: "Vaccination",
-        text: "Vérifiez que vos vaccins sont à jour, surtout pour les enfants.",
-        color: "bg-emerald-100 dark:bg-emerald-900/30",
-        textColor: "text-emerald-700 dark:text-emerald-300",
-        iconColor: "text-emerald-500",
-    },
-    {
-        id: 3,
-        title: "Activité Physique",
-        text: "30 minutes de marche par jour réduisent les risques cardiaques.",
-        color: "bg-orange-100 dark:bg-orange-900/30",
-        textColor: "text-orange-700 dark:text-orange-300",
-        iconColor: "text-orange-500",
-    },
-];
+import { tipsService, HealthTip } from "@/lib/tips-service";
 
 export default function HealthTipsCarousel() {
     const [current, setCurrent] = useState(0);
+    const [tips, setTips] = useState<HealthTip[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        loadTips();
+    }, []);
+
+    const loadTips = async () => {
+        try {
+            const data = await tipsService.getTips();
+            setTips(data);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (tips.length === 0) return;
         const timer = setInterval(() => {
-            setCurrent((prev) => (prev + 1) % TIPS.length);
+            setCurrent((prev) => (prev + 1) % tips.length);
         }, 5000); // 5 seconds per slide
 
         return () => clearInterval(timer);
-    }, []);
+    }, [tips]);
 
-    const tip = TIPS[current];
+    if (loading) return <div className="animate-pulse bg-emerald-50 h-32 rounded-2xl mb-6"></div>;
+    if (tips.length === 0) return null;
+
+    const tip = tips[current];
 
     return (
         <div className="mb-6">
@@ -51,7 +44,7 @@ export default function HealthTipsCarousel() {
                     Conseil Santé
                 </h3>
                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {current + 1}/{TIPS.length}
+                    {current + 1}/{tips.length}
                 </span>
             </div>
 
