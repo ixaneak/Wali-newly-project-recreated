@@ -5,6 +5,15 @@ import { useRouter } from 'next/navigation';
 import { Smartphone, Lock, ChevronRight } from 'lucide-react';
 import { notificationService } from '@/lib/api-client';
 
+import { auth } from '@/lib/firebase';
+import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
+
+declare global {
+    interface Window {
+        recaptchaVerifier: any;
+    }
+}
+
 export default function LoginPage() {
     const router = useRouter();
     const [step, setStep] = useState(1);
@@ -13,6 +22,19 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [countdown, setCountdown] = useState(300);
+    const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+
+    // Initialize recaptcha
+    useEffect(() => {
+        if (!window.recaptchaVerifier) {
+            window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                'size': 'invisible',
+                'callback': (response: any) => {
+                    // reCAPTCHA solved, allow signInWithPhoneNumber.
+                }
+            });
+        }
+    }, []);
 
     // Countdown timer logic
     useEffect(() => {
@@ -43,16 +65,19 @@ export default function LoginPage() {
 
         try {
             const fullPhone = '+225' + phone.replace(/\s/g, '');
-            const response = await notificationService.generateOTP(fullPhone);
+            const appVerifier = window.recaptchaVerifier;
 
-            if (response.data.success) {
-                setStep(2);
-                setCountdown(300);
-            } else {
-                setError(response.data.message || 'Erreur inconnue');
-            }
+            const confirmation = await signInWithPhoneNumber(auth, fullPhone, appVerifier);
+            setConfirmationResult(confirmation);
+            setStep(2);
+            setCountdown(300);
         } catch (err: any) {
-            setError('Erreur de connexion au serveur.');
+            console.error(err);
+            setError(err.message || 'Erreur de connexion.');
+            if (window.recaptchaVerifier) {
+                window.recaptchaVerifier.clear();
+                // Re-initialize might be needed depending on error, but usually clear is enough to retry
+            }
         } finally {
             setLoading(false);
         }
@@ -64,18 +89,11 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            const fullPhone = '+225' + phone.replace(/\s/g, '');
-            const response = await notificationService.verifyOTP(fullPhone, code);
-
-            if (response.data.success) {
-                localStorage.setItem('user_phone', fullPhone);
-                localStorage.setItem('user_id', response.data.user_id || '');
-                if (response.data.token) {
-                    localStorage.setItem('auth_token', response.data.token);
-                }
+            if (confirmationResult) {
+                await confirmationResult.confirm(code);
                 router.push('/dashboard');
             } else {
-                setError(response.data.message || 'Erreur inconnue');
+                setError("Erreur de session. Veuillez réessayer.");
             }
         } catch (err: any) {
             setError('Code incorrect ou expiré.');
@@ -223,6 +241,7 @@ export default function LoginPage() {
                                     </p>
                                 </div>
                             </form>
+                            <div id="recaptcha-container"></div>
                         </>
                     ) : (
                         /* OTP Step */

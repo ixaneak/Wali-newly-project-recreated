@@ -8,7 +8,7 @@ class Claim(Base):
     __tablename__ = "claims"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(String(128), ForeignKey("users.id"), nullable=False)
     policy_id = Column(UUID(as_uuid=True), ForeignKey("policies.id"), nullable=True)
     
     # Claim details
@@ -20,7 +20,7 @@ class Claim(Base):
     # Status and review
     status = Column(String(50), nullable=False, default='submitted')  # submitted, under_review, approved, rejected, paid
     review_notes = Column(Text, nullable=True)
-    reviewed_by = Column(UUID(as_uuid=True), nullable=True)
+    reviewed_by = Column(String(128), nullable=True)
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
     
     # Photos

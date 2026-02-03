@@ -2,13 +2,11 @@ fastapi
 uvicorn
 sqlalchemy
 psycopg2-binary
+python-dotenv
+alembic
 pydantic
 pydantic-settings
-python-multipart
-email-validator
-passlib[bcrypt]
-python-jose[cryptography]
 httpx
-pytest
-fpdf2
 cloudinary
+python-multipart
+firebase-admin

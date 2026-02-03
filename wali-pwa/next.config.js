@@ -30,11 +30,15 @@ const nextConfig = {
             },
             {
                 source: '/api/v1/compliance/:path*',
-                destination: 'http://localhost:8002/api/v1/compliance/:path*',
+                destination: 'http://localhost:8000/api/v1/compliance/:path*',
             },
             {
                 source: '/api/v1/payments/:path*',
                 destination: 'http://localhost:8080/api/v1/payments/:path*',
+            },
+            {
+                source: '/api/v1/notifications/:path*',
+                destination: 'http://localhost:8003/api/v1/notifications/:path*',
             },
         ]
     },

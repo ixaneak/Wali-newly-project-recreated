@@ -8,7 +8,35 @@ from app.core.config import get_settings
 from app.core.database import engine, Base
 from app.routes import policies, claims, photos, admin_users, compliance
 
-# ... (logging config) ...
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+settings = get_settings()
+
+# Create tables
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    logger.warning(f"Failed to create tables (DB unreachable?): {e}")
+
+app = FastAPI(
+    title="Wali Policy Service",
+    description="Microservice for managing insurance policies and claims",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
+)
+
+# CORS Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For development; restrict in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(policies.router)
 app.include_router(claims.router)

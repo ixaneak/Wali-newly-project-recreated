@@ -138,7 +138,8 @@ def load_db():
                          # Handle UUIDs
                          try:
                              item_data["id"] = uuid.UUID(item_data["id"])
-                             item_data["user_id"] = uuid.UUID(item_data["user_id"])
+                             # user_id is now a string (Firebase UID), don't cast to UUID
+                             # item_data["user_id"] = uuid.UUID(item_data["user_id"])
                          except:
                              pass
                              

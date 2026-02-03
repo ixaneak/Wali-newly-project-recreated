@@ -27,7 +27,7 @@ class Claim(Base):
     __tablename__ = "claims"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     policy_id = Column(UUID(as_uuid=True), ForeignKey("policies.id", ondelete="CASCADE"), nullable=False)
     claim_number = Column(String(50), unique=True, nullable=False)
     
@@ -44,7 +44,7 @@ class Claim(Base):
     
     # Status and review
     status = Column(Enum(ClaimStatus), default=ClaimStatus.SUBMITTED)
-    reviewer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    reviewer_id = Column(String(128), ForeignKey("users.id"))
     review_notes = Column(Text)
     
     # Fraud detection

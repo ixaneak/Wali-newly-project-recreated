@@ -1,79 +1,78 @@
 package config
 
 import (
-	"log"
 	"os"
+
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
 	// Server
 	Port string
-	
+
 	// Database
 	DatabaseURL string
-	
+
 	// Redis
 	RedisURL string
-	
+
 	//Orange Money
 	OrangeClientID     string
 	OrangeClientSecret string
 	OrangeAPIURL       string
 	OrangeMerchantCode string
-	
+
 	// MTN MoMo
 	MTNAPIUser         string
 	MTNAPIKey          string
 	MTNSubscriptionKey string
 	MTNTargetEnv       string
 	MTNCallbackURL     string
-	
+
 	// Wave
-	WaveAPIKey        string
-	WaveSecretKey     string
-	WaveCheckoutURL   string
-	
+	WaveAPIKey      string
+	WaveSecretKey   string
+	WaveCheckoutURL string
+
 	// Compliance
-	EscrowBankAccount     string
-	OperatingBankAccount  string
-	TechFeePercentage     int
-	
+	EscrowBankAccount    string
+	OperatingBankAccount string
+	TechFeePercentage    int
+
 	// Testing
-	MockPaymentProviders  bool
+	MockPaymentProviders bool
 }
 
 func Load() *Config {
-	// Load .env file
-	if err	:= godotenv.Load("../../.env"); err != nil {
-		log.Println("No .env file found, using environment variables")
-	}
-	
+	// Load .env file (try local first, then root)
+	_ = godotenv.Load(".env")
+	_ = godotenv.Load("../../.env")
+
 	return &Config{
-		Port:                  getEnv("PORT", "8080"),
-		DatabaseURL:           getEnv("DATABASE_URL", ""),
-		RedisURL:              getEnv("REDIS_URL", "redis://localhost:6379"),
-		
-		OrangeClientID:        getEnv("ORANGE_CLIENT_ID", ""),
-		OrangeClientSecret:    getEnv("ORANGE_CLIENT_SECRET", ""),
-		OrangeAPIURL:          getEnv("ORANGE_API_URL", "https://api.orange.com"),
-		OrangeMerchantCode:    getEnv("ORANGE_MERCHANT_CODE", ""),
-		
-		MTNAPIUser:            getEnv("MTN_API_USER", ""),
-		MTNAPIKey:             getEnv("MTN_API_KEY", ""),
-		MTNSubscriptionKey:    getEnv("MTN_SUBSCRIPTION_KEY", ""),
-		MTNTargetEnv:          getEnv("MTN_TARGET_ENVIRONMENT", "sandbox"),
-		MTNCallbackURL:        getEnv("MTN_CALLBACK_URL", ""),
-		
-		WaveAPIKey:            getEnv("WAVE_API_KEY", ""),
-		WaveSecretKey:         getEnv("WAVE_SECRET_KEY", ""),
-		WaveCheckoutURL:       getEnv("WAVE_CHECKOUT_URL", "https://api.wave.com/v1/checkout/sessions"),
-		
-		EscrowBankAccount:     getEnv("ESCROW_BANK_ACCOUNT", ""),
-		OperatingBankAccount:  getEnv("OPERATING_BANK_ACCOUNT", ""),
-		TechFeePercentage:     2,
-		
-		MockPaymentProviders:  getEnv("MOCK_PAYMENT_PROVIDERS", "false") == "true",
+		Port:        getEnv("PORT", "8080"),
+		DatabaseURL: getEnv("DATABASE_URL", ""),
+		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
+
+		OrangeClientID:     getEnv("ORANGE_CLIENT_ID", ""),
+		OrangeClientSecret: getEnv("ORANGE_CLIENT_SECRET", ""),
+		OrangeAPIURL:       getEnv("ORANGE_API_URL", "https://api.orange.com"),
+		OrangeMerchantCode: getEnv("ORANGE_MERCHANT_CODE", ""),
+
+		MTNAPIUser:         getEnv("MTN_API_USER", ""),
+		MTNAPIKey:          getEnv("MTN_API_KEY", ""),
+		MTNSubscriptionKey: getEnv("MTN_SUBSCRIPTION_KEY", ""),
+		MTNTargetEnv:       getEnv("MTN_TARGET_ENVIRONMENT", "sandbox"),
+		MTNCallbackURL:     getEnv("MTN_CALLBACK_URL", ""),
+
+		WaveAPIKey:      getEnv("WAVE_API_KEY", ""),
+		WaveSecretKey:   getEnv("WAVE_SECRET_KEY", ""),
+		WaveCheckoutURL: getEnv("WAVE_CHECKOUT_URL", "https://api.wave.com/v1/checkout/sessions"),
+
+		EscrowBankAccount:    getEnv("ESCROW_BANK_ACCOUNT", ""),
+		OperatingBankAccount: getEnv("OPERATING_BANK_ACCOUNT", ""),
+		TechFeePercentage:    2,
+
+		MockPaymentProviders: getEnv("MOCK_PAYMENT_PROVIDERS", "false") == "true",
 	}
 }
 

@@ -83,7 +83,11 @@ def create_policy(
     - **payment_frequency**: daily, weekly, or monthly
     - **region**: Optional region for risk calculation
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Received policy creation request for user: {request.user_id}")
     try:
+        print(f"DEBUG: Route received request for user {request.user_id}")
         policy = PolicyService.create_policy(
             db=db,
             user_id=request.user_id,

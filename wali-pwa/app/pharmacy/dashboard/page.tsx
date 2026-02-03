@@ -88,17 +88,33 @@ export default function PharmacyDashboard() {
 
     useEffect(() => {
         if (scanning) {
-            // @ts-ignore - html5-qrcode types can be finicky
-            const scanner = new Html5QrcodeScanner(
-                "reader",
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-                false
-            );
-            scanner.render(handleScanSuccess, (err) => console.log(err));
+            // Give DOM time to render the 'reader' element
+            const timeoutId = setTimeout(() => {
+                // @ts-ignore
+                const scanner = new Html5QrcodeScanner(
+                    "reader",
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    false
+                );
 
-            return () => {
-                scanner.clear().catch(err => console.error(err));
-            };
+                scanner.render(
+                    handleScanSuccess,
+                    (err) => {
+                        // Ignore standard scanning errors to avoid console spam
+                        if (typeof err === "string" && !err.includes("NotFound")) {
+                            console.log(err);
+                        }
+                    }
+                );
+
+                // Store in window or ref if needed to clear properly, but simpler logic here:
+                // Use a cleanup function that handles the clear promise
+                return () => {
+                    scanner.clear().catch(err => console.error("Failed to clear scanner", err));
+                };
+            }, 100);
+
+            return () => clearTimeout(timeoutId);
         }
     }, [scanning]);
 

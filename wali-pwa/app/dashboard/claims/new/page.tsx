@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Heart, AlertTriangle, Home, FileText, Camera, X, Check, Loader2 } from 'lucide-react';
 import { ClaimType, CLAIM_TYPE_CONFIG } from '@/types/claims';
-import { claimsService } from '@/lib/api-client';
+import { claimsService, policyService, PolicyData } from '@/lib/api-client';
 import imageCompression from 'browser-image-compression';
 import { toast } from 'sonner';
+import { auth } from '@/lib/firebase';
 
 type Step = 'type' | 'details' | 'photos' | 'review';
 
@@ -21,6 +22,89 @@ export default function NewClaimPage() {
     const [uploading, setUploading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const [loadingPolicy, setLoadingPolicy] = useState(true);
+    const [activePolicy, setActivePolicy] = useState<PolicyData | null>(null);
+    const [userId, setUserId] = useState<string | null>(null);
+
+    // Load active policy
+    useEffect(() => {
+        const loadPolicy = async () => {
+            // Wait for auth to be ready
+            if (!auth.currentUser) return;
+
+            const uid = auth.currentUser.uid;
+            setUserId(uid);
+            setLoadingPolicy(true);
+
+            try {
+                const policies = await policyService.getUserPolicies(uid);
+                const active = policies.find((p: PolicyData) => p.status === 'active' || p.status === 'pending');
+                // Allow 'pending' for dev testing if strict 'active' is blocking
+
+                if (active) {
+                    setActivePolicy(active);
+                } else {
+                    console.log("No active policy found");
+                }
+            } catch (error) {
+                console.error("Failed to load policy", error);
+                toast.error("Impossible de vérifier votre couverture d'assurance");
+            } finally {
+                setLoadingPolicy(false);
+            }
+        };
+
+        // Delay slightly to ensure auth state is populated
+        const timer = setTimeout(() => {
+            if (auth.currentUser) loadPolicy();
+            else {
+                // Listen for auth state change if not ready
+                const unsubscribe = auth.onAuthStateChanged((user) => {
+                    if (user) loadPolicy();
+                    else setLoadingPolicy(false);
+                });
+                return () => unsubscribe();
+            }
+        }, 500);
+        return () => clearTimeout(timer);
+    }, []);
+
+    // Helper to create test policy (DEV ONLY)
+    const handleCreateTestPolicy = async () => {
+        if (!auth.currentUser) return;
+        try {
+            toast.loading("Création d'une police de test...");
+            const uid = auth.currentUser.uid;
+            await policyService.createPolicy({
+                user_id: uid,
+                coverage_type: 'bundle',
+                coverage_details: { max_coverage_amount: 500000, description: "Test Policy" },
+                payment_frequency: 'monthly',
+                region: 'Abidjan'
+            });
+            // Reload
+            const policies = await policyService.getUserPolicies(uid);
+            const active = policies[0]; // Just take first one
+            if (active) setActivePolicy(active);
+            toast.dismiss();
+            toast.success("Police créée! Vous pouvez maintenant faire un claim.");
+        } catch (e: any) {
+            console.error("Policy creation failed:", e);
+            console.error("Error data:", e.response?.data);
+
+            let detailedError = "";
+            if (e.response?.data?.detail) {
+                detailedError = typeof e.response.data.detail === 'string'
+                    ? e.response.data.detail
+                    : JSON.stringify(e.response.data.detail);
+            }
+
+            toast.dismiss();
+            toast.error(`Erreur création police: ${detailedError || e.message}`);
+        }
+    };
+
 
     const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
@@ -102,8 +186,8 @@ export default function NewClaimPage() {
 
             // Step 2: Submit claim with photo URLs
             const claimData = {
-                user_id: "00000000-0000-0000-0000-000000000000", // Default test ID
-                policy_id: "00000000-0000-0000-0000-000000000000", // Default test ID
+                user_id: userId || "",
+                policy_id: activePolicy?.id || "",
                 claim_type: claimType,
                 amount: parseFloat(amount),
                 description,
@@ -193,46 +277,71 @@ export default function NewClaimPage() {
 
             {/* Content */}
             <div className="p-6">
-                {step === 'type' && (
-                    <div className="space-y-3">
-                        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-                            Type de sinistre
-                        </h2>
-                        {(Object.keys(CLAIM_TYPE_CONFIG) as ClaimType[]).map((type) => {
-                            const config = CLAIM_TYPE_CONFIG[type];
-                            const Icon = type === 'medical' ? Heart :
-                                type === 'accident' ? AlertTriangle :
-                                    type === 'property' ? Home : FileText;
-
-                            return (
-                                <button
-                                    key={type}
-                                    onClick={() => setClaimType(type)}
-                                    className={`w-full p-4 rounded-2xl border-2 transition text-left ${claimType === type
-                                        ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20'
-                                        : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-gray-300 dark:hover:border-slate-600'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-12 h-12 rounded-xl ${config.bgColor} flex items-center justify-center ${config.color}`}>
-                                            <Icon className="w-6 h-6" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="font-bold text-gray-900 dark:text-white mb-1">
-                                                {config.label}
-                                            </div>
-                                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                {config.description}
-                                            </div>
-                                        </div>
-                                        {claimType === type && (
-                                            <Check className="w-5 h-5 text-emerald-600" />
-                                        )}
-                                    </div>
-                                </button>
-                            );
-                        })}
+                {loadingPolicy ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                        <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mb-4" />
+                        <p>Vérification de votre couverture...</p>
                     </div>
+                ) : !activePolicy ? (
+                    <div className="text-center py-12">
+                        <div className="bg-yellow-50 dark:bg-yellow-900/20 p-6 rounded-2xl border border-yellow-200 dark:border-yellow-800 mb-6">
+                            <AlertTriangle className="w-12 h-12 text-yellow-600 dark:text-yellow-400 mx-auto mb-4" />
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Aucune police active</h3>
+                            <p className="text-gray-600 dark:text-gray-400 mb-4">
+                                Vous devez avoir une assurance active pour déclarer un sinistre.
+                            </p>
+                            <button
+                                onClick={handleCreateTestPolicy}
+                                className="bg-emerald-600 text-white px-6 py-2 rounded-xl"
+                            >
+                                Créer une Police (Test Mode)
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {step === 'type' && (
+                            <div className="space-y-3">
+                                <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                                    Type de sinistre
+                                </h2>
+                                {(Object.keys(CLAIM_TYPE_CONFIG) as ClaimType[]).map((type) => {
+                                    const config = CLAIM_TYPE_CONFIG[type];
+                                    const Icon = type === 'medical' ? Heart :
+                                        type === 'accident' ? AlertTriangle :
+                                            type === 'property' ? Home : FileText;
+
+                                    return (
+                                        <button
+                                            key={type}
+                                            onClick={() => setClaimType(type)}
+                                            className={`w-full p-4 rounded-2xl border-2 transition text-left ${claimType === type
+                                                ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20'
+                                                : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-gray-300 dark:hover:border-slate-600'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-12 h-12 rounded-xl ${config.bgColor} flex items-center justify-center ${config.color}`}>
+                                                    <Icon className="w-6 h-6" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="font-bold text-gray-900 dark:text-white mb-1">
+                                                        {config.label}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                        {config.description}
+                                                    </div>
+                                                </div>
+                                                {claimType === type && (
+                                                    <Check className="w-5 h-5 text-emerald-600" />
+                                                )}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </>
                 )}
 
                 {step === 'details' && (

@@ -22,19 +22,19 @@ export default function BottomNav() {
             name: 'Historique',
             href: '/dashboard/history',
             icon: History,
-            active: pathname === '/dashboard/history',
+            active: pathname?.startsWith('/dashboard/history'),
         },
         {
             name: 'Mes Claims',
             href: '/dashboard/claims',
             icon: FileText,
-            active: pathname === '/dashboard/claims',
+            active: pathname?.startsWith('/dashboard/claims'),
         },
         {
             name: 'Profil',
             href: '/dashboard/profile',
             icon: User,
-            active: pathname === '/dashboard/profile',
+            active: pathname?.startsWith('/dashboard/profile'),
         },
     ];
 

@@ -5,8 +5,10 @@ from fastapi.responses import JSONResponse
 import logging
 
 from app.core.config import get_settings
-from app.core.database import engine, Base
+from app.core.database import Base, engine
+from app.core.error_handlers import register_exception_handlers
 from app.routes import claims, photos
+import app.models.stubs  # Register stub models for ForeignKeys
 
 # Configure logging
 logging.basicConfig(
@@ -26,6 +28,9 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+# Register security error handlers (sanitizes all exceptions)
+register_exception_handlers(app)
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -39,7 +44,7 @@ app.add_middleware(
 app.include_router(claims.router)
 app.include_router(photos.router)
 
-# Health check endpoint
+# Health check endpoint (no auth required)
 @app.get("/health", status_code=status.HTTP_200_OK)
 def health_check():
     """Health check endpoint for Docker/Kubernetes."""
@@ -49,7 +54,7 @@ def health_check():
         "environment": settings.environment
     }
 
-# Root endpoint
+# Root endpoint (no auth required)
 @app.get("/")
 def root():
     """Root endpoint."""
@@ -59,15 +64,7 @@ def root():
         "docs": "/docs"
     }
 
-# Exception handlers
-@app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
-    """Global exception handler."""
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"detail": "Internal server error"}
-    )
+
 
 # Startup event
 @app.on_event("startup")

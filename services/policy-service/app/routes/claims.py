@@ -57,14 +57,14 @@ async def create_claim(
     try:
         # Check for active policy
         policy = db.query(Policy).filter(
-            Policy.user_id == uuid.UUID(current_user["user_id"]),
+            Policy.user_id == current_user["user_id"],
             Policy.status == PolicyStatus.ACTIVE
         ).first()
 
         # Create claim
         new_claim = Claim(
             id=uuid.uuid4(),
-            user_id=uuid.UUID(current_user["user_id"]),
+            user_id=current_user["user_id"],
             policy_id=policy.id if policy else None,
             claim_type=claim_data.claim_type,
             amount=claim_data.amount,
@@ -100,7 +100,7 @@ async def get_user_claims(
     Optional filter by status.
     """
     try:
-        query = db.query(Claim).filter(Claim.user_id == uuid.UUID(current_user["user_id"]))
+        query = db.query(Claim).filter(Claim.user_id == current_user["user_id"])
         
         if status_filter:
             query = query.filter(Claim.status == status_filter)
@@ -130,7 +130,7 @@ async def get_claim(
     try:
         claim = db.query(Claim).filter(
             Claim.id == uuid.UUID(claim_id),
-            Claim.user_id == uuid.UUID(current_user["user_id"])
+            Claim.user_id == current_user["user_id"]
         ).first()
         
         if not claim:
@@ -235,7 +235,7 @@ async def update_claim_status(
             claim.review_notes = update_data.review_notes
         
         # Set reviewer info
-        claim.reviewed_by = uuid.UUID(current_user["user_id"])
+        claim.reviewed_by = current_user["user_id"]
         claim.reviewed_at = datetime.utcnow()
         
         db.commit()

@@ -28,29 +28,8 @@ except Exception as e:
     USE_MOCK_DB = True
 
 def get_db() -> Session:
-    global USE_MOCK_DB
-    
-    if USE_MOCK_DB:
-        yield MockSession()
-        return
-
+    db = SessionLocal()
     try:
-        db = SessionLocal()
-        try:
-             # Fast connection check
-             from sqlalchemy import text
-             db.execute(text("SELECT 1"))
-        except Exception:
-             logger.warning("DB Connection failed, switching to Mock DB")
-             USE_MOCK_DB = True
-             db.close()
-             yield MockSession()
-             return
-
-        try:
-            yield db
-        finally:
-            db.close()
-    except Exception:
-        USE_MOCK_DB = True
-        yield MockSession()
+        yield db
+    finally:
+        db.close()

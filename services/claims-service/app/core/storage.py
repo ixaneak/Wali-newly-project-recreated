@@ -114,6 +114,9 @@ class MinIOClient:
             logger.error(f"Error deleting image: {e}")
             raise
     
+    
+    def list_files(self, claim_id: str) -> list[str]:
+        """List all files for a claim."""
         if not self.healthy:
             return []
             

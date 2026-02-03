@@ -137,13 +137,25 @@ class PolicyService:
         )
         
         try:
+            print(f"DEBUG: Attempting to create policy for user {user_id}")
             db.add(policy)
+            print("DEBUG: Policy added to session, committing...")
             db.commit()
+            print("DEBUG: Transaction committed.")
             db.refresh(policy)
+            print(f"DEBUG: Policy refreshed, final ID: {policy.id}")
             return policy
-        except IntegrityError:
+        except Exception as e:
+            with open("debug_error.log", "a") as f:
+                f.write(f"\n--- ERROR AT {datetime.now()} ---\n")
+                f.write(f"User ID: {user_id}\n")
+                f.write(f"Policy Data: {policy.to_dict() if hasattr(policy, 'to_dict') else 'No to_dict'}\n")
+                f.write(f"Error: {e}\n")
+                import traceback
+                traceback.print_exc(file=f)
+            print(f"CRITICAL ERROR creating policy: {e}")
             db.rollback()
-            raise ValueError("Failed to create policy")
+            raise ValueError(f"Failed to create policy: {e}")
     
     @staticmethod
     def activate_policy(db: Session, policy_id: str, transaction_ref: str) -> Policy:

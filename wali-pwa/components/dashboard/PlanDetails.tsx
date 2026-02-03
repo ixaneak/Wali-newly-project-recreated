@@ -105,7 +105,10 @@ function PlanDetailsContent() {
                         </button>
                     )}
 
-                    <button className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-medium py-3.5 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition">
+                    <button
+                        onClick={() => router.push('/dashboard/history')}
+                        className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-gray-700 dark:text-gray-300 font-medium py-3.5 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition"
+                    >
                         Voir historique de paiements
                     </button>
                 </div>

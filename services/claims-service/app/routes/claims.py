@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.models.claim import ClaimStatus, CoverageType
 from app.services.claims_service import ClaimsService
 from app.core.config import get_settings
+from app.core.security_middleware import verify_jwt, verify_admin
 
 router = APIRouter(prefix="/api/v1/claims", tags=["claims"])
 settings = get_settings()
@@ -75,7 +76,8 @@ async def submit_claim(
     description: str = Form(...),
     claimed_amount: int = Form(..., gt=0),
     images: List[UploadFile] = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(verify_jwt)
 ):
     """
     Submit a new insurance claim with images.
@@ -152,7 +154,8 @@ async def submit_claim(
 @router.post("/submit-json", response_model=ClaimResponse, status_code=status.HTTP_201_CREATED)
 async def submit_claim_json(
     request: ClaimCreateRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(verify_jwt)
 ):
     """
     Submit a new insurance claim with pre-uploaded photo URLs.
@@ -172,18 +175,18 @@ async def submit_claim_json(
 
         # Check if user exists in the shared database
         from sqlalchemy import text
-        user_exists = db.execute(text("SELECT id FROM users WHERE id = :uid"), {"uid": u_id}).first()
+        user_exists = db.execute(text("SELECT id FROM users WHERE id = :uid"), {"uid": str(u_id)}).first()
         if not user_exists:
             # Create a dummy user for testing if it doesn't exist
             db.execute(text("INSERT INTO users (id, phone, kyc_status, role) VALUES (:uid, :phone, :kyc, :role) ON CONFLICT DO NOTHING"), 
-                       {"uid": u_id, "phone": "+22500000000", "kyc": "verified", "role": "artisan"})
+                       {"uid": str(u_id), "phone": "+22500000000", "kyc": "VERIFIED", "role": "ARTISAN"})
         
         # Check if policy exists
-        policy_exists = db.execute(text("SELECT id FROM policies WHERE id = :pid"), {"pid": p_id}).first()
+        policy_exists = db.execute(text("SELECT id FROM policies WHERE id = :pid"), {"pid": str(p_id)}).first()
         if not policy_exists:
             # Create a dummy policy for testing
-            db.execute(text("INSERT INTO policies (id, user_id, type, status, tier) VALUES (:pid, :uid, :type, :status, :tier) ON CONFLICT DO NOTHING"),
-                       {"pid": p_id, "uid": u_id, "type": "health", "status": "active", "tier": "demarrage"})
+            db.execute(text("INSERT INTO policies (id, user_id, coverage_type, status, policy_number, coverage_details, premium_amount, payment_frequency, start_date, end_date) VALUES (:pid, :uid, :type, :status, :pol_num, :details, :premium, :freq, :start, :end) ON CONFLICT DO NOTHING"),
+                       {"pid": str(p_id), "uid": str(u_id), "type": "HEALTH", "status": "ACTIVE", "pol_num": f"POL-{uuid.uuid4().hex[:8].upper()}", "details": "{}", "premium": 1000, "freq": "MONTHLY", "start": datetime.utcnow(), "end": datetime.utcnow()})
 
         # Create claim record
         claim = Claim(
@@ -205,6 +208,10 @@ async def submit_claim_json(
         return claim.to_dict()
     except Exception as e:
         db.rollback()
+        import traceback
+        with open("debug_error.log", "a") as f:
+            f.write(f"\n--- Error at {datetime.now()} ---\n")
+            f.write(traceback.format_exc())
         logger.error(f"Failed to submit claim via JSON: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -215,7 +222,8 @@ async def submit_claim_json(
 @router.get("/{claim_id}", response_model=ClaimResponse)
 def get_claim(
     claim_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(verify_jwt)
 ):
     """Get a specific claim by ID."""
     claim = ClaimsService.get_claim(db, claim_id)
@@ -231,7 +239,8 @@ def get_claim(
 def get_user_claims(
     user_id: str,
     status_filter: Optional[ClaimStatus] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(verify_jwt)
 ):
     """Get all claims for a user, optionally filtered by status."""
     claims = ClaimsService.get_user_claims(db, user_id, status_filter)
@@ -242,7 +251,8 @@ def get_user_claims(
 def review_claim(
     claim_id: str,
     request: ClaimReviewRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin_user: dict = Depends(verify_admin)
 ):
     """
     Review a claim (admin only).
@@ -272,7 +282,8 @@ def review_claim(
 def mark_claim_paid(
     claim_id: str,
     request: ClaimPayoutRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin_user: dict = Depends(verify_admin)
 ):
     """Mark claim as paid after payout transaction completes."""
     try:
@@ -296,7 +307,8 @@ def get_all_claims(
     end_date: Optional[datetime] = None,
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin_user: dict = Depends(verify_admin)
 ):
     """Get all claims for admin review with filtering (admin only)."""
     claims = ClaimsService.get_all_claims(
@@ -310,6 +322,9 @@ def get_all_claims(
     return [c.to_dict() for c in claims]
 
 @router.get("/admin/stats")
-def get_admin_stats(db: Session = Depends(get_db)):
+def get_admin_stats(
+    db: Session = Depends(get_db),
+    admin_user: dict = Depends(verify_admin)
+):
     """Get claim statistics for admin dashboard."""
     return ClaimsService.get_admin_stats(db)

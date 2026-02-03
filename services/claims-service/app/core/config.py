@@ -34,9 +34,11 @@ class Settings(BaseSettings):
     # Compliance
     claims_retention_days: int = 2555  # 7 years for insurance law
     
+    
     # Environment
     environment: str = "development"
     log_level: str = "INFO"
+    use_mock_db: bool = False
     
     # Security
     allowed_origins: list[str] = ["http://localhost:3000", "http://localhost:8080"]
@@ -44,6 +46,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"
 
 
 @lru_cache()

@@ -12,6 +12,7 @@ class UserRole(str, enum.Enum):
     ARTISAN = "artisan"
     PHARMACY = "pharmacy"
     ADMIN = "admin"
+    USER = "user"
 
 
 class PolicyStatus(str, enum.Enum):
@@ -39,7 +40,8 @@ class Policy(Base):
     __tablename__ = "policies"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    # Firebase UID is a string, not a UUID
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     policy_number = Column(String(50), unique=True, nullable=False)
     
     # Coverage details
@@ -100,7 +102,8 @@ class User(Base):
     """User model (simplified for policy service)."""
     __tablename__ = "users"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # Firebase UID is the primary key
+    id = Column(String(128), primary_key=True)
     phone = Column(String(20), unique=True, nullable=False)
     role = Column(Enum(UserRole), nullable=False)
     name = Column(String(100))

@@ -4,8 +4,9 @@ import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, XCircle, Loader2, CreditCard, Shield } from 'lucide-react';
 import { PLAN_CONFIG, PlanTier } from '../../types/plans';
-import { paymentApi as paymentService } from "@/lib/api-client";
+import { paymentApi, policyService } from "@/lib/api-client";
 import { toast } from 'sonner';
+import { auth } from '@/lib/firebase';
 
 type PaymentStatus = 'confirming' | 'processing' | 'success' | 'error';
 
@@ -23,20 +24,45 @@ function PaymentConfirmationContent() {
     const plan = PLAN_CONFIG[tier] || PLAN_CONFIG['demarrage'] || Object.values(PLAN_CONFIG)[0];
 
     const handlePayment = async () => {
+        if (!auth.currentUser) {
+            toast.error("Veuillez vous connecter pour continuer");
+            return;
+        }
+
         setStatus('processing');
 
         try {
-            // Simulate payment initiation
-            const response = await paymentService.initiatePayment({
-                user_id: "user-123",
-                policy_id: `policy-${tier}`,
+            // 1. Create Policy
+            console.log("Creating policy for tier:", tier);
+            const policy = await policyService.createPolicy({
+                user_id: auth.currentUser.uid,
+                coverage_type: 'bundle', // Using bundle for all tiered plans
+                coverage_details: {
+                    max_coverage_amount: plan.coverageLimit,
+                    description: `Souscription ${plan.nameFr}`
+                },
+                payment_frequency: plan.paymentFrequency,
+                region: "Abidjan" // Default region
+            });
+
+            if (!policy || !policy.id) throw new Error("Échec de création de police");
+
+            // 2. Initiate Payment
+            console.log(`Initiating payment for policy ${policy.id}`);
+            const paymentResp = await paymentApi.initiatePayment({
+                user_id: auth.currentUser.uid,
+                policy_id: policy.id,
                 amount: plan.monthlyPremium,
-                phone: phoneNumber || "+225 07 07 07 07 07",
+                phone: phoneNumber || "+2250707070707",
                 provider: paymentMethod
             });
 
-            // Simulate processing delay
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // 3. Activate Policy (if mock success or immediate confirmation)
+            if (paymentResp && (paymentResp.status === 'success' || paymentResp.transaction_ref)) {
+                await policyService.activatePolicy(policy.id, paymentResp.transaction_ref);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Small UX delay
 
             setStatus('success');
             toast.success('Paiement réussi !');
@@ -49,7 +75,7 @@ function PaymentConfirmationContent() {
         } catch (error) {
             console.error('Payment error:', error);
             setStatus('error');
-            toast.error('Échec du paiement');
+            toast.error('Échec du paiement. Veuillez réessayer.');
         }
     };
 

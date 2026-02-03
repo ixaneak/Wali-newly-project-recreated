@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from 'next/navigation';
+import React from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { LogOut, Stethoscope } from 'lucide-react';
 
 export default function PharmacyLayout({
@@ -9,6 +10,14 @@ export default function PharmacyLayout({
     children: React.ReactNode;
 }) {
     const router = useRouter();
+    const pathname = usePathname();
+    const [mounted, setMounted] = React.useState(false);
+
+    React.useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    const isLoginPage = mounted && pathname?.includes('/login');
 
     const handleLogout = () => {
         if (typeof window !== 'undefined') {
@@ -35,19 +44,21 @@ export default function PharmacyLayout({
                         </div>
 
                         {/* Right Side Actions */}
-                        <div className="flex items-center gap-4">
-                            <div className="hidden md:block text-right">
-                                <div className="text-sm font-medium">Pharmacie de la Paix</div>
-                                <div className="text-xs text-emerald-200">ID: PH-002</div>
+                        {!isLoginPage && (
+                            <div className="flex items-center gap-4">
+                                <div className="hidden md:block text-right">
+                                    <div className="text-sm font-medium">Pharmacie de la Paix</div>
+                                    <div className="text-xs text-emerald-200">ID: PH-002</div>
+                                </div>
+                                <button
+                                    onClick={handleLogout}
+                                    className="p-2 hover:bg-white/10 rounded-full transition"
+                                    title="Se déconnecter"
+                                >
+                                    <LogOut className="w-5 h-5" />
+                                </button>
                             </div>
-                            <button
-                                onClick={handleLogout}
-                                className="p-2 hover:bg-white/10 rounded-full transition"
-                                title="Se déconnecter"
-                            >
-                                <LogOut className="w-5 h-5" />
-                            </button>
-                        </div>
+                        )}
                     </div>
                 </div>
             </nav>
