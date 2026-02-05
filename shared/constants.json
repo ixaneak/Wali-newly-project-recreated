@@ -1,0 +1,42 @@
+{
+    "PlanTier": [
+        "DEMARRAGE",
+        "CLASSIQUE",
+        "PRO"
+    ],
+    "ClaimStatus": [
+        "SUBMITTED",
+        "UNDER_REVIEW",
+        "APPROVED",
+        "REJECTED",
+        "PAID"
+    ],
+    "PaymentProvider": [
+        "ORANGE_MONEY",
+        "MTN_MOMO",
+        "WAVE"
+    ],
+    "PolicyStatus": [
+        "PENDING",
+        "ACTIVE",
+        "SUSPENDED",
+        "CANCELLED",
+        "EXPIRED"
+    ],
+    "CoverageType": [
+        "HEALTH",
+        "EQUIPMENT",
+        "THEFT",
+        "BUNDLE"
+    ],
+    "KYCStatus": [
+        "PENDING",
+        "VERIFIED",
+        "REJECTED"
+    ],
+    "UserRole": [
+        "USER",
+        "ADMIN",
+        "AGENT"
+    ]
+}

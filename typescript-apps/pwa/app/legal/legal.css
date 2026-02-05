@@ -1,0 +1,230 @@
+/**
+ * Wali Legal Documents - Login Screen Styling
+ * Ivory Coast Compliance (Law 2013-450, ARTCI, OHADA)
+ */
+
+/* Link Styling for Legal Terms */
+.legal-links {
+    font-size: 0.875rem;
+    color: #6B7280;
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.legal-links a {
+    color: #0D9488;
+    /* Teal */
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.legal-links a:hover {
+    color: #0F766E;
+    text-decoration: underline;
+}
+
+.legal-links a:focus {
+    outline: 2px solid #0D9488;
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+/* Legal Page Container - Light Mode */
+.legal-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.7;
+    color: #1F2937;
+    background-color: #ffffff;
+    min-height: 100vh;
+}
+
+.legal-container h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 0.5rem;
+}
+
+.legal-container .last-updated {
+    font-size: 0.875rem;
+    color: #6B7280;
+    margin-bottom: 2rem;
+}
+
+.legal-container h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1F2937;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #E5E7EB;
+    padding-bottom: 0.5rem;
+}
+
+.legal-container h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #374151;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.legal-container p {
+    margin-bottom: 1rem;
+}
+
+.legal-container ul,
+.legal-container ol {
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+}
+
+.legal-container li {
+    margin-bottom: 0.5rem;
+}
+
+.legal-container .contact-box {
+    background-color: #F3F4F6;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+.legal-container .language-toggle {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.legal-container .language-toggle button {
+    padding: 0.5rem 1rem;
+    border: 1px solid #0D9488;
+    border-radius: 6px;
+    background: white;
+    color: #0D9488;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.legal-container .language-toggle button.active,
+.legal-container .language-toggle button:hover {
+    background: #0D9488;
+    color: white;
+}
+
+/* ============================================
+   DARK MODE SUPPORT
+   ============================================ */
+
+/* System preference dark mode */
+@media (prefers-color-scheme: dark) {
+    .legal-container {
+        background-color: #0f172a;
+        color: #e2e8f0;
+    }
+
+    .legal-container h1 {
+        color: #f1f5f9;
+    }
+
+    .legal-container .last-updated {
+        color: #94a3b8;
+    }
+
+    .legal-container h2 {
+        color: #f1f5f9;
+        border-bottom-color: #334155;
+    }
+
+    .legal-container h3 {
+        color: #cbd5e1;
+    }
+
+    .legal-container p,
+    .legal-container li {
+        color: #cbd5e1;
+    }
+
+    .legal-container .contact-box {
+        background-color: #1e293b;
+        border: 1px solid #334155;
+    }
+
+    .legal-container .language-toggle button {
+        background: #1e293b;
+        color: #14b8a6;
+        border-color: #14b8a6;
+    }
+
+    .legal-container .language-toggle button.active,
+    .legal-container .language-toggle button:hover {
+        background: #14b8a6;
+        color: #0f172a;
+    }
+
+    .legal-container a {
+        color: #2dd4bf;
+    }
+
+    .legal-container a:hover {
+        color: #5eead4;
+    }
+}
+
+/* Tailwind .dark class support */
+.dark .legal-container {
+    background-color: #0f172a;
+    color: #e2e8f0;
+}
+
+.dark .legal-container h1 {
+    color: #f1f5f9;
+}
+
+.dark .legal-container .last-updated {
+    color: #94a3b8;
+}
+
+.dark .legal-container h2 {
+    color: #f1f5f9;
+    border-bottom-color: #334155;
+}
+
+.dark .legal-container h3 {
+    color: #cbd5e1;
+}
+
+.dark .legal-container p,
+.dark .legal-container li {
+    color: #cbd5e1;
+}
+
+.dark .legal-container .contact-box {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+}
+
+.dark .legal-container .language-toggle button {
+    background: #1e293b;
+    color: #14b8a6;
+    border-color: #14b8a6;
+}
+
+.dark .legal-container .language-toggle button.active,
+.dark .legal-container .language-toggle button:hover {
+    background: #14b8a6;
+    color: #0f172a;
+}
+
+.dark .legal-container a {
+    color: #2dd4bf;
+}
+
+.dark .legal-container a:hover {
+    color: #5eead4;
+}

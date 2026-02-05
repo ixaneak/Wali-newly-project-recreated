@@ -1,0 +1,135 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --wali-emerald: #10b981;
+        --wali-teal: #0d9488;
+        --wali-green: #059669;
+        --wali-mint: #34d399;
+        --wali-dark-green: #064e3b;
+        --background: 0 0% 100%;
+        --foreground: 222.2 84% 4.9%;
+    }
+
+    .dark {
+        --background: 222.2 84% 4.9%;
+        --foreground: 210 40% 98%;
+    }
+}
+
+@layer utilities {
+    .animate-gradient {
+        background: linear-gradient(135deg,
+                #064e3b 0%,
+                #065f46 15%,
+                #047857 30%,
+                #059669 45%,
+                #10b981 55%,
+                #34d399 65%,
+                #059669 75%,
+                #047857 85%,
+                #065f46 100%);
+        background-size: 400% 400%;
+        animation: gradientShift 15s ease infinite;
+    }
+
+    .animate-float-leaf {
+        animation: floatLeaf 15s ease-in-out infinite;
+    }
+
+    .animate-logo-glow {
+        animation: containerGlow 3s ease-in-out infinite;
+    }
+
+    @keyframes gradientShift {
+        0% {
+            background-position: 0% 50%;
+        }
+
+        50% {
+            background-position: 100% 50%;
+        }
+
+        100% {
+            background-position: 0% 50%;
+        }
+    }
+
+    @keyframes floatLeaf {
+
+        0%,
+        100% {
+            transform: translateY(0) rotate(0deg);
+            opacity: 0.2;
+        }
+
+        25% {
+            transform: translateY(-20px) rotate(10deg);
+            opacity: 0.4;
+        }
+
+        50% {
+            transform: translateY(-40px) rotate(-5deg);
+            opacity: 0.3;
+        }
+
+        75% {
+            transform: translateY(-20px) rotate(15deg);
+            opacity: 0.4;
+        }
+    }
+
+    @keyframes containerGlow {
+
+        0%,
+        100% {
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.3), 0 0 40px rgba(52, 211, 153, 0.4);
+        }
+
+        50% {
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.5), 0 0 60px rgba(52, 211, 153, 0.6);
+        }
+    }
+
+    @keyframes progress {
+        from {
+            width: 0%;
+        }
+
+        to {
+            width: 100%;
+        }
+    }
+
+    /* 3D Card Animation Utilities */
+    .perspective-1000 {
+        perspective: 1000px;
+    }
+
+    .transform-style-3d {
+        transform-style: preserve-3d;
+    }
+
+    .backface-hidden {
+        backface-visibility: hidden;
+    }
+
+    .rotate-y-180 {
+        transform: rotateY(180deg);
+    }
+
+    /* Dropdown hover fixes */
+    .group:hover .dropdown,
+    .dropdown:hover {
+        display: block;
+        opacity: 1;
+    }
+
+    /* Ensure no gap between trigger and dropdown */
+    .dropdown {
+        margin-top: 0;
+        pointer-events: auto;
+    }
+}

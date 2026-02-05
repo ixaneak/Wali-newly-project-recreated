@@ -8,21 +8,21 @@ $ErrorActionPreference = "Stop"
 Write-Host "Starting Web PWA..." -ForegroundColor Cyan
 
 # Check if node_modules exists
-if (-not (Test-Path "wali-pwa/node_modules")) {
+if (-not (Test-Path "typescript-apps/pwa/node_modules")) {
     Write-Host "Installing dependencies..." -ForegroundColor Yellow
-    Set-Location wali-pwa
+    Set-Location typescript-apps/pwa
     npm install
-    Set-Location ..
+    Set-Location ../..
 }
 
 # Check if .env.local exists
-if (-not (Test-Path "wali-pwa/.env.local")) {
+if (-not (Test-Path "typescript-apps/pwa/.env.local")) {
     Write-Host "Creating environment file..." -ForegroundColor Yellow
-    Copy-Item "wali-pwa/.env.local.example" "wali-pwa/.env.local"
+    Copy-Item "typescript-apps/pwa/.env.local.example" "typescript-apps/pwa/.env.local"
 }
 
 Write-Host "Starting Next.js on http://localhost:3000" -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd wali-pwa; npm run dev"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd typescript-apps/pwa; npm run dev"
 
 Write-Host "Services starting..." -ForegroundColor Green
 Write-Host "Access the PWA at: http://localhost:3000" -ForegroundColor Cyan
