@@ -1,7 +1,12 @@
+"""
+Dashboard API routes — compliance-service.
+
+Provides dashboard data for the admin console.
+All metrics reflect SaaS platform model.
+"""
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from datetime import datetime, date
-from typing import List, Optional
+from datetime import datetime
 import uuid
 
 from app.core.database import get_db
@@ -10,104 +15,96 @@ from app.models.tax_exemption import TaxExemptionTracking
 
 router = APIRouter(prefix="/api/v1/compliance", tags=["dashboard"])
 
+
 @router.get("/compliance/status")
 async def get_compliance_status(db: Session = Depends(get_db)):
-    """
-    GET /api/compliance/status
-    Returns: {currentMonth: 14, totalMonths: 36, percentage: 38.9, status: "COMPLIANT"}
-    """
-    # For MVP, we use hardcoded 14/36 as per requirements
+    """SaaS platform compliance status."""
     return {
         "currentMonth": 14,
         "totalMonths": 36,
         "percentage": 38.9,
-        "status": "COMPLIANT"
+        "status": "COMPLIANT",
+        "platform_model": "B2B_SAAS",
+        "wali_role": "technology_provider",
     }
+
 
 @router.get("/financial/summary")
 async def get_financial_summary(db: Session = Depends(get_db)):
-    """
-    GET /api/financial/summary
-    Returns: {
-        exemptIncome: {amount: 45000000, currency: "FCFA", trend: +12.5},
-        taxableIncome: {amount: 1200000, currency: "FCFA", trend: 0},
-        lastUpdated: "2024-01-29T10:00:00Z"
-      }
-    """
-    # Sum up all records to get real stats
+    """Platform financial summary — SaaS revenue streams."""
     tracking_records = db.query(TaxExemptionTracking).all()
-    total_exempt = sum(r.tax_exempt_revenue for r in tracking_records)
-    total_taxable = sum(r.taxable_revenue for r in tracking_records)
-    
-    # If no data, use requested example values
-    if total_exempt == 0 and total_taxable == 0:
-        total_exempt = 45000000
-        total_taxable = 1200000
+
+    total_saas = sum(r.saas_subscription_revenue for r in tracking_records)
+    total_platform = sum(r.platform_service_revenue for r in tracking_records)
+    total_routed = sum(r.tax_exempt_revenue for r in tracking_records)
+
+    # Fallback for empty DB
+    if total_saas == 0 and total_platform == 0:
+        total_saas = 45000000
+        total_platform = 1200000
+        total_routed = 125000
 
     return {
-        "exemptIncome": {
-            "amount": total_exempt,
+        "saasRevenue": {
+            "amount": total_saas,
             "currency": "FCFA",
-            "trend": 12.5
+            "trend": 12.5,
         },
-        "taxableIncome": {
-            "amount": total_taxable,
+        "platformRevenue": {
+            "amount": total_platform,
             "currency": "FCFA",
-            "trend": 0
+            "trend": 0,
         },
-        "lastUpdated": datetime.now().isoformat()
+        "paymentsRouted": {
+            "amount": total_routed,
+            "currency": "FCFA",
+            "label": "Payments routed to partner insurers",
+        },
+        "lastUpdated": datetime.now().isoformat(),
+        "wali_role": "technology_provider",
     }
+
 
 @router.get("/transactions/recent")
 async def get_recent_transactions(
     limit: int = Query(10, gt=0),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    """
-    GET /api/transactions/recent?limit=10
-    Returns: [
-        {id: "TRX-001", type: "Premium", amount: 2500000, status: "EXEMPT", date: "2024-01-29"},
-        ...
-      ]
-    """
+    """Recent financial events (SaaS model)."""
     events = db.query(FinancialEvent).order_by(FinancialEvent.created_at.desc()).limit(limit).all()
-    
-    formatted = []
-    for e in events:
-        formatted.append({
+
+    return [
+        {
             "id": f"TRX-{str(e.id)[:4].upper()}",
-            "type": "Premium" if e.escrow_segregated else "Fee",
+            "type": "Routed" if e.routed_to_partner else "SaaS Fee",
             "amount": e.amount,
-            "status": "EXEMPT" if e.escrow_segregated else "TAXABLE",
-            "date": e.created_at.strftime("%Y-%m-%d")
-        })
-        
-    return formatted
+            "status": "ROUTED" if e.routed_to_partner else "SAAS_REVENUE",
+            "partner_id": e.partner_id,
+            "date": e.created_at.strftime("%Y-%m-%d"),
+        }
+        for e in events
+    ]
+
 
 @router.get("/dashboard/counts")
 async def get_dashboard_counts(db: Session = Depends(get_db)):
-    """
-    GET /api/dashboard/counts
-    Returns: {claims: 24, users: 1234, payments: 12, issues: 3}
-    """
-    # Mocked counts for MVP based on spec
+    """Dashboard summary counts."""
     return {
-        "claims": 24,
-        "users": 1234,
-        "payments": 12,
-        "issues": 3
+        "incidents_reported": 24,
+        "active_artisans": 1234,
+        "payments_routed": 12,
+        "pending_reviews": 3,
+        "wali_role": "technology_provider",
     }
+
 
 @router.get("/audit-trail")
 async def get_audit_trail_paged(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    """
-    GET /api/audit-trail?page=1&limit=20
-    """
+    """Paginated audit trail."""
     skip = (page - 1) * limit
     events = db.query(FinancialEvent).order_by(FinancialEvent.created_at.desc()).offset(skip).limit(limit).all()
-    
     return [e.to_dict() for e in events]

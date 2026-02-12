@@ -7,15 +7,15 @@ $ErrorActionPreference = "Stop"
 
 # 1. Policy Service (Port 8000)
 Write-Host "Starting Policy Service (Port 8000)..." -ForegroundColor Cyan
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd python-services/policy-service; `$env:USE_MOCK_DB='True'; `$env:JWT_SECRET='dev-secret'; `$env:ESCROW_BANK_ACCOUNT='123'; `$env:OPERATING_BANK_ACCOUNT='456'; python -m uvicorn app.main:app --reload --port 8000"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd python-services/policy-service; `$env:USE_MOCK_DB='True'; `$env:JWT_SECRET='dev-secret'; `$env:IS_SAAS_PLATFORM='True'; `$env:NAF_CODE='6201Z'; `$env:UNDERWRITING_PARTNER='NSIA'; python -m uvicorn app.main:app --reload --port 8000"
 
 # 2. Claims Service (Port 8001)
 Write-Host "Starting Claims Service (Port 8001)..." -ForegroundColor Cyan
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd python-services/claims-service; `$env:USE_MOCK_DB='True'; `$env:JWT_SECRET='dev-secret'; python -m uvicorn app.main:app --reload --port 8001"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd python-services/claims-service; `$env:USE_MOCK_DB='True'; `$env:JWT_SECRET='dev-secret'; `$env:IS_SAAS_PLATFORM='True'; python -m uvicorn app.main:app --reload --port 8001"
 
 # 3. Compliance Service (Port 8002)
 Write-Host "Starting Compliance Service (Port 8002)..." -ForegroundColor Cyan
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd python-services/compliance-service; `$env:DATABASE_URL='sqlite:///./test.db'; python -m uvicorn app.main:app --reload --port 8002"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd python-services/compliance-service; `$env:DATABASE_URL='sqlite:///./test.db'; `$env:IS_SAAS_PLATFORM='True'; python -m uvicorn app.main:app --reload --port 8002"
 
 # 4. Notification Service (Port 8003)
 Write-Host "Starting Notification Service (Port 8003)..." -ForegroundColor Cyan

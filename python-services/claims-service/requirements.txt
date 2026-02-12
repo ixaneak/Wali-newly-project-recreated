@@ -13,3 +13,5 @@ imagehash
 minio
 alembic
 python-dotenv
+firebase-admin
+slowapi

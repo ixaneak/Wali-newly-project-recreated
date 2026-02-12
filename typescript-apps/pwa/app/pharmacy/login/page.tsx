@@ -1,127 +1,230 @@
-"use client";
+'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Stethoscope, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { Building2, Lock, Mail, Users, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { pharmacyService } from '@/lib/api-client';
 import { toast } from 'sonner';
-import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function PharmacyLoginPage() {
     const router = useRouter();
-    const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    // For MVP Demo: Auto-fill helper
+    const handleDemoFill = () => {
+        setEmail('pharmacie@wali.com');
+        setPassword('pharma1234');
+    };
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log('🔔 Login Submit');
         setLoading(true);
 
-        // Simulate API Login
-        setTimeout(() => {
-            if (email === 'pharmacie@wali.com' && password === 'pharma123') {
-                localStorage.setItem('user_role', 'pharmacy');
-                toast.success('Connexion réussie');
-                router.push('/pharmacy/dashboard');
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+            const res = await fetch('/api/v1/pharmacy/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ email, password }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            // Handle non-JSON responses (HTML errors) or empty bodies
+            let data;
+            const contentType = res.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                try {
+                    data = await res.json();
+                } catch (jsonErr) {
+                    console.error('Failed to parse JSON:', jsonErr);
+                    data = { detail: "Erreur de format de réponse" };
+                }
             } else {
-                toast.error('Identifiants incorrects');
-                setLoading(false);
+                const text = await res.text();
+                data = { detail: `Server error: ${text.substring(0, 100)}` };
             }
-        }, 1500);
+
+            if (!res.ok) {
+                console.error('Login failed:', data);
+                // Safe error extraction
+                const errorMsg = data?.detail || data?.error || `Erreur ${res.status}`;
+                toast.error(errorMsg);
+                return;
+            }
+
+            // Success
+            console.log('Login success:', data);
+            localStorage.setItem('pharmacy_token', data.access_token);
+            localStorage.setItem('pharmacy_api_key', data.api_key);
+            localStorage.setItem('user_role', 'pharmacy');
+
+            toast.success(`Bienvenue, ${data.business_name}`);
+
+            if (data.subscription_status === 'trial_ended' || data.subscription_status === 'suspended') {
+                window.location.href = '/pharmacy/billing';
+            } else {
+                window.location.href = '/pharmacy';
+            }
+
+        } catch (err: any) {
+            console.error('Network Error:', err);
+            if (err.name === 'AbortError') {
+                toast.error('Délai d\'attente dépassé (Timeout).');
+            } else {
+                toast.error("Erreur réseau: " + err.message);
+            }
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
-            <div className="absolute top-4 right-4">
-                <ThemeToggle />
-            </div>
-
-            <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-xl overflow-hidden border border-gray-100 dark:border-slate-800">
-                {/* Header */}
-                <div className="bg-emerald-600 p-8 text-center relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/medical-icons.png')] opacity-10"></div>
-                    <div className="relative z-10 flex flex-col items-center">
-                        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-                            <Stethoscope className="w-8 h-8 text-emerald-600" />
+        <div className="min-h-screen flex">
+            {/* Left Side - Brand/Marketing */}
+            <div className="hidden lg:flex w-1/2 bg-slate-900 relative overflow-hidden flex-col justify-between p-12 text-white">
+                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1631549916768-4119b2e5f926?q=80&w=2938&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-overlay"></div>
+                <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-8">
+                        <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
+                            <Building2 className="text-white" />
                         </div>
-                        <h1 className="text-2xl font-bold text-white">Espace Pharmacie</h1>
-                        <p className="text-emerald-100 text-sm mt-1">Portail Partenaires Wali</p>
+                        <span className="text-2xl font-bold tracking-tight">Wali Pro</span>
                     </div>
+                    <h1 className="text-5xl font-bold leading-tight mb-6">
+                        La solution SaaS pour les Pharmacies modernes.
+                    </h1>
+                    <p className="text-slate-300 text-lg max-w-md">
+                        Vérifiez la couverture santé de vos clients artisans en temps réel et simplifiez vos remboursements avec NSIA.
+                    </p>
                 </div>
 
-                {/* Login Form */}
-                <div className="p-8">
-                    <form onSubmit={handleLogin} className="space-y-5">
+                <div className="relative z-10 space-y-4">
+                    <div className="flex items-center gap-3">
+                        <CheckCircle2 className="text-emerald-500" />
+                        <span>Vérification instantanée (QR & ID)</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <CheckCircle2 className="text-emerald-500" />
+                        <span>Remboursements accélérés</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <CheckCircle2 className="text-emerald-500" />
+                        <span>Tableau de bord analytique</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Right Side - Login Form */}
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50 dark:bg-slate-950">
+                <div className="w-full max-w-md space-y-8">
+                    <div className="text-center lg:text-left">
+                        <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Connexion Espace Pro</h2>
+                        <p className="mt-2 text-gray-500">Accédez à votre portail pharmacien</p>
+                    </div>
+
+                    <form onSubmit={handleLogin} className="space-y-6">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 ml-1">
-                                Identifiant Pharmacie
-                            </label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition text-gray-900 dark:text-white"
-                                placeholder="pharmacie@wali.com"
-                                required
-                            />
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email professionnel</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Mail className="h-5 w-5 text-gray-400" />
+                                </div>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 dark:bg-slate-900 dark:border-slate-800 dark:text-white transition"
+                                    placeholder="contact@pharmacie.com"
+                                    required
+                                />
+                            </div>
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 ml-1">
-                                Mot de passe
-                            </label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mot de passe</label>
                             <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Lock className="h-5 w-5 text-gray-400" />
+                                </div>
                                 <input
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition text-gray-900 dark:text-white"
+                                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 dark:bg-slate-900 dark:border-slate-800 dark:text-white transition"
                                     placeholder="••••••••"
                                     required
                                 />
-                                <Lock className="absolute right-4 top-3.5 text-gray-400 w-5 h-5" />
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between text-sm">
-                            <label className="flex items-center gap-2 text-gray-600 dark:text-gray-400 cursor-pointer">
-                                <input type="checkbox" className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 bg-gray-50 dark:bg-slate-800" />
-                                Se souvenir de moi
-                            </label>
-                            <a href="#" className="font-medium text-emerald-600 hover:text-emerald-500">
-                                Mot de passe oublié ?
-                            </a>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                                <input
+                                    id="remember-me"
+                                    name="remember-me"
+                                    type="checkbox"
+                                    className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
+                                />
+                                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                                    Se souvenir de moi
+                                </label>
+                            </div>
+                            <div className="text-sm">
+                                <a href="#" className="font-medium text-emerald-600 hover:text-emerald-500">
+                                    Mot de passe oublié ?
+                                </a>
+                            </div>
                         </div>
 
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-lg shadow-emerald-200 dark:shadow-emerald-900/20 active:scale-[0.98] transition flex items-center justify-center gap-2"
+                            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition disabled:opacity-50 disabled:cursor-not-allowed items-center gap-2"
                         >
-                            {loading ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                                <>
-                                    Se connecter
-                                    <ArrowRight className="w-5 h-5" />
-                                </>
-                            )}
+                            {loading ? 'Connexion...' : 'Se connecter'}
+                            {!loading && <ArrowRight className="w-5 h-5" />}
                         </button>
                     </form>
 
                     <div className="mt-6 text-center">
-                        <p className="text-xs text-gray-400 leading-relaxed">
-                            En vous connectant, vous acceptez nos{' '}
-                            <a href="/legal/terms" className="text-[#0D9488] font-medium hover:underline">conditions d&apos;utilisation</a>
-                            {' '}et notre{' '}
-                            <a href="/legal/privacy" className="text-[#0D9488] font-medium hover:underline">politique de confidentialité</a>
-                        </p>
+                        <p className="text-sm text-gray-500">Pour la démo</p>
+                        <button
+                            type="button"
+                            onClick={handleDemoFill}
+                            className="text-emerald-600 text-sm font-medium hover:underline"
+                        >
+                            Remplir avec identifiants démo
+                        </button>
                     </div>
 
-                    <div className="mt-4 text-center">
-                        <p className="text-xs text-gray-400">
-                            En cas de problème technique, contactez le support Wali au <span className="font-medium text-gray-600 dark:text-gray-300">27 22 55 44 00</span>
-                        </p>
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-gray-300 dark:border-slate-800"></div>
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                            <span className="px-2 bg-gray-50 dark:bg-slate-950 text-gray-500">
+                                Vous êtes artisan ?
+                            </span>
+                        </div>
                     </div>
+
+                    <button
+                        onClick={() => router.push('/login')}
+                        className="w-full flex justify-center py-3 px-4 border border-gray-300 dark:border-slate-700 rounded-xl shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 transition items-center gap-2"
+                    >
+                        <Users className="w-5 h-5" />
+                        Connexion Artisan (Mobile)
+                    </button>
                 </div>
             </div>
         </div>

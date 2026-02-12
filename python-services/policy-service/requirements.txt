@@ -7,6 +7,11 @@ alembic
 pydantic
 pydantic-settings
 httpx
+requests
 cloudinary
 python-multipart
 firebase-admin
+python-jose[cryptography]
+passlib[bcrypt]
+psycopg2-binary
+slowapi

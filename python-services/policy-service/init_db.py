@@ -1,24 +1,20 @@
-"""
-Database initialization script.
-Run this to create all tables including the new claims table.
-"""
-from app.core.database import engine, Base
-from app.models import Policy, User, Claim
-import logging
+﻿import sys
+import os
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Fix path for release command
+sys.path.append(os.getcwd())
 
-def init_db():
-    """Create all database tables."""
-    try:
-        logger.info("Creating database tables...")
-        Base.metadata.create_all(bind=engine)
-        logger.info("✅ Database tables created successfully!")
-        logger.info("Tables: users, policies, claims")
-    except Exception as e:
-        logger.error(f"❌ Failed to create tables: {e}")
-        raise
+from app.core.database import engine
+from app.models import (
+    Base, Policy, User, Claim, PharmacyPartner,
+    Partner, PartnerInvoice, PlatformUsageLog, PartnerApiConfig,
+    FinancialEvent, PaydunyaTransaction, TaxExemptionTracking
+)
+
+def init_database():
+    print("Initializing database...")
+    Base.metadata.create_all(bind=engine)
+    print("Database tables created successfully!")
 
 if __name__ == "__main__":
-    init_db()
+    init_database()

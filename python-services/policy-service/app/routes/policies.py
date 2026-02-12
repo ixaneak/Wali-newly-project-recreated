@@ -1,68 +1,73 @@
-"""Policy API routes."""
-from fastapi import APIRouter, Depends, HTTPException, status
+"""
+Enrollment API Routes (was: policies.py)
+
+Manages artisan enrollment into partner insurer products.
+Wali provides the technology; the partner insurer owns the coverage.
+
+All endpoints use /partners/{partner_id}/enrollments pattern
+to emphasize B2B SaaS architecture.
+"""
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel, Field
-from datetime import datetime
+import logging
 
 from app.core.database import get_db
 from app.core.security_middleware import verify_jwt, verify_admin
-from app.models.policy import PolicyStatus, CoverageType, PaymentFrequency
-from app.services.policy_service import PolicyService
+from app.models.policy import SubscriptionStatus, PaymentFrequency
+from app.services.policy_service import EnrollmentService
+from app.core.rate_limit import limiter
 
-router = APIRouter(prefix="/api/v1/policies", tags=["policies"])
+router = APIRouter(prefix="/api/v1/partners", tags=["enrollments"])
+logger = logging.getLogger(__name__)
 
 
 # ==================== Pydantic Schemas ====================
 
-class CoverageDetailsSchema(BaseModel):
-    """Coverage details for policy."""
-    max_coverage_amount: int = Field(..., gt=0, description="Maximum coverage in XOF")
-    deductible: Optional[int] = Field(None, ge=0, description="Deductible amount in XOF")
-    description: Optional[str] = None
-
-
-class PolicyCreateRequest(BaseModel):
-    """Request to create a new policy."""
+class EnrollmentCreateRequest(BaseModel):
+    """Request to enroll artisan in partner's coverage product."""
     user_id: str
-    coverage_type: CoverageType
-    coverage_details: CoverageDetailsSchema
+    partner_product_id: str = Field(..., description="Product code from partner catalog (e.g. NSIA-HEALTH-01)")
+    partner_product_config: dict = Field(..., description="Coverage details defined by partner insurer")
+    # partner_quoted_amount: int = Field(..., gt=0, description="Price set by partner insurer (XOF)") -- REMOVED for SaaS Compliance
     payment_frequency: PaymentFrequency
-    region: Optional[str] = None
+    is_test: bool = False
 
 
-class PolicyActivateRequest(BaseModel):
-    """Request to activate a policy."""
+class EnrollmentConfirmRequest(BaseModel):
+    """Confirm enrollment after payment routed to partner."""
     transaction_ref: str
 
 
-class PolicyUpdatePaymentRequest(BaseModel):
-    """Request to update policy payment."""
+class PaymentRoutingRequest(BaseModel):
+    """Record payment routing to partner."""
     transaction_ref: str
 
 
-class PolicyCancelRequest(BaseModel):
-    """Request to cancel a policy."""
+class EnrollmentCancelRequest(BaseModel):
+    """Cancel an enrollment."""
     reason: str
 
 
-class PolicyResponse(BaseModel):
-    """Policy response."""
+class EnrollmentResponse(BaseModel):
+    """Enrollment response."""
     id: str
     user_id: str
-    policy_number: str
-    coverage_type: str
-    coverage_details: dict
-    premium_amount: int
+    subscription_number: str
+    partner_id: str
+    partner_product_id: str
+    partner_product_config: dict
+    partner_quoted_amount: int
     payment_frequency: str
     status: str
-    mobile_money_ref: Optional[str]
-    last_payment_date: Optional[str]
-    next_payment_date: Optional[str]
-    start_date: Optional[str]
-    end_date: Optional[str]
-    created_at: str
-    updated_at: str
+    mobile_money_ref: Optional[str] = None
+    last_payment_date: Optional[str] = None
+    next_payment_date: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -70,189 +75,202 @@ class PolicyResponse(BaseModel):
 
 # ==================== Routes ====================
 
-@router.post("/", response_model=PolicyResponse, status_code=status.HTTP_201_CREATED)
-def create_policy(
-    request: PolicyCreateRequest,
+@router.post(
+    "/{partner_id}/enrollments",
+    response_model=EnrollmentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+@limiter.limit("30/minute")
+def create_enrollment(
+    partner_id: str,
+    request: Request,
+    enrollment_request: EnrollmentCreateRequest,
     db: Session = Depends(get_db),
-    user: dict = Depends(verify_jwt)
+    user: dict = Depends(verify_jwt),
 ):
     """
-    Create a new insurance policy.
-    
-    - **user_id**: UUID of the user
-    - **coverage_type**: health, equipment, theft, or bundle
-    - **coverage_details**: Coverage specifics including max_coverage_amount
-    - **payment_frequency**: daily, weekly, or monthly
-    - **region**: Optional region for risk calculation
+    Enroll artisan in partner insurer's coverage product.
+
+    The product and pricing come from the partner insurer,
+    NOT from Wali. Wali provides the technology layer only.
     """
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info(f"Received policy creation request for user: {request.user_id}")
+    # Quick mock bypass for test/demo mode — avoids DB dependency
+    if enrollment_request.is_test:
+        # SECURITY: Test mode enrollment MUST ONLY be allowed in development.
+        # This bypasses the insurer API and DB persistence.
+        import os
+        if os.getenv('ENV') != 'development':
+            logger.warning(f"Blocking test enrollment request in {os.getenv('ENV')} environment")
+            raise HTTPException(status_code=403, detail="Test mode disabled")
+
+        from datetime import datetime, timedelta
+        import uuid
+        mock_id = str(uuid.uuid4())
+        return {
+            "id": mock_id,
+            "user_id": enrollment_request.user_id,
+            "subscription_number": f"SUB-TEST-{mock_id[:8].upper()}",
+            "partner_id": partner_id,
+            "partner_product_id": enrollment_request.partner_product_id,
+            "partner_product_config": enrollment_request.partner_product_config,
+            "partner_quoted_amount": 1000,
+            "payment_frequency": enrollment_request.payment_frequency.value if hasattr(enrollment_request.payment_frequency, 'value') else str(enrollment_request.payment_frequency),
+            "status": "active",
+            "mobile_money_ref": None,
+            "last_payment_date": datetime.utcnow().isoformat(),
+            "next_payment_date": (datetime.utcnow() + timedelta(days=30)).isoformat(),
+            "start_date": datetime.utcnow().isoformat(),
+            "end_date": None,
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+
     try:
-        print(f"DEBUG: Route received request for user {request.user_id}")
-        policy = PolicyService.create_policy(
+        subscription = EnrollmentService.create_enrollment(
             db=db,
-            user_id=request.user_id,
-            coverage_type=request.coverage_type,
-            coverage_details=request.coverage_details.model_dump(),
-            payment_frequency=request.payment_frequency,
-            region=request.region
+            user_id=enrollment_request.user_id,
+            partner_id=partner_id,
+            partner_product_id=enrollment_request.partner_product_id,
+            partner_product_config=enrollment_request.partner_product_config,
+            # partner_quoted_amount=enrollment_request.partner_quoted_amount, -- REMOVED
+            payment_frequency=enrollment_request.payment_frequency,
+            is_test=enrollment_request.is_test,
         )
-        return policy.to_dict()
+        return subscription
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
-
-
-@router.get("/{policy_id}", response_model=PolicyResponse)
-def get_policy(
-    policy_id: str,
-    db: Session = Depends(get_db),
-    user: dict = Depends(verify_jwt)
-):
-    """Get a specific policy by ID."""
-    policy = PolicyService.get_policy(db, policy_id)
-    if not policy:
+    except Exception as e:
+        logger.error(f"Error creating enrollment: {e}")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Policy not found"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
         )
-    return policy.to_dict()
 
 
-@router.get("/user/{user_id}", response_model=List[PolicyResponse])
-def get_user_policies(
+@router.get("/{partner_id}/enrollments/{subscription_id}", response_model=EnrollmentResponse)
+def get_enrollment(
+    partner_id: str,
+    subscription_id: str,
+    db: Session = Depends(get_db),
+    user: dict = Depends(verify_jwt),
+):
+    """Get a specific enrollment."""
+    sub = EnrollmentService.get_enrollment(db, subscription_id)
+    if not sub:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Enrollment not found")
+    return sub.to_dict()
+
+
+@router.get("/{partner_id}/enrollments/user/{user_id}", response_model=List[EnrollmentResponse])
+def get_user_enrollments(
+    partner_id: str,
     user_id: str,
-    status_filter: Optional[PolicyStatus] = None,
+    status_filter: Optional[SubscriptionStatus] = None,
     db: Session = Depends(get_db),
-    user: dict = Depends(verify_jwt)
+    user: dict = Depends(verify_jwt),
 ):
-    """Get all policies for a user, optionally filtered by status."""
-    policies = PolicyService.get_user_policies(db, user_id, status_filter)
-    return [p.to_dict() for p in policies]
+    """Get all enrollments for an artisan."""
+    subs = EnrollmentService.get_user_enrollments(db, user_id, status_filter)
+    return [s.to_dict() for s in subs]
 
 
-@router.post("/{policy_id}/activate", response_model=PolicyResponse)
-def activate_policy(
-    policy_id: str,
-    request: PolicyActivateRequest,
-    db: Session = Depends(get_db)
-    # user: dict = Depends(verify_jwt)
+@router.post("/{partner_id}/enrollments/{subscription_id}/confirm", response_model=EnrollmentResponse)
+def confirm_enrollment(
+    partner_id: str,
+    subscription_id: str,
+    request: EnrollmentConfirmRequest,
+    db: Session = Depends(get_db),
 ):
     """
-    Activate a policy after successful payment.
-    
-    This endpoint should be called by the payment service after confirming payment.
+    Confirm enrollment after payment has been routed to partner insurer.
+
+    This endpoint is called when the partner confirms receipt of payment.
     """
     try:
-        policy = PolicyService.activate_policy(
-            db=db,
-            policy_id=policy_id,
-            transaction_ref=request.transaction_ref
-        )
-        return policy.to_dict()
+        sub = EnrollmentService.confirm_enrollment(db, subscription_id, request.transaction_ref)
+        return sub.to_dict()
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.patch("/{policy_id}/payment", response_model=PolicyResponse)
-def update_policy_payment(
-    policy_id: str,
-    request: PolicyUpdatePaymentRequest,
+@router.patch("/{partner_id}/enrollments/{subscription_id}/payment", response_model=EnrollmentResponse)
+def record_payment_routing(
+    partner_id: str,
+    subscription_id: str,
+    request: PaymentRoutingRequest,
     db: Session = Depends(get_db),
-    user: dict = Depends(verify_jwt)
+    user: dict = Depends(verify_jwt),
 ):
-    """Update policy after premium payment."""
+    """Update enrollment after payment routed to partner."""
     try:
-        policy = PolicyService.update_policy_payment(
-            db=db,
-            policy_id=policy_id,
-            transaction_ref=request.transaction_ref
-        )
-        return policy.to_dict()
+        sub = EnrollmentService.record_payment_routing(db, subscription_id, request.transaction_ref)
+        return sub.to_dict()
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.post("/{policy_id}/cancel", response_model=PolicyResponse)
-def cancel_policy(
-    policy_id: str,
-    request: PolicyCancelRequest,
+@router.post("/{partner_id}/enrollments/{subscription_id}/cancel", response_model=EnrollmentResponse)
+def cancel_enrollment(
+    partner_id: str,
+    subscription_id: str,
+    request: EnrollmentCancelRequest,
     db: Session = Depends(get_db),
-    user: dict = Depends(verify_jwt)
+    user: dict = Depends(verify_jwt),
 ):
-    """Cancel a policy."""
+    """Cancel an enrollment."""
     try:
-        policy = PolicyService.cancel_policy(
-            db=db,
-            policy_id=policy_id,
-            reason=request.reason
-        )
-        return policy.to_dict()
+        sub = EnrollmentService.cancel_enrollment(db, subscription_id, request.reason)
+        return sub.to_dict()
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.get("/", response_model=List[PolicyResponse])
-def list_all_policies(
+@router.get("/{partner_id}/enrollments", response_model=List[EnrollmentResponse])
+def list_partner_enrollments(
+    partner_id: str,
     skip: int = 0,
     limit: int = 100,
-    status_filter: Optional[PolicyStatus] = None,
+    status_filter: Optional[SubscriptionStatus] = None,
     db: Session = Depends(get_db),
-    admin: dict = Depends(verify_admin)
+    admin: dict = Depends(verify_admin),
 ):
-    """
-    List all policies (admin only).
-    
-    - **skip**: Number of records to skip
-    - **limit**: Maximum number of records to return
-    - **status_filter**: Optional status filter
-    """
-    from app.models.policy import Policy
-    
-    query = db.query(Policy)
-    
+    """List all enrollments for a partner (admin only)."""
+    from app.models.policy import CoverageSubscription
+
+    query = db.query(CoverageSubscription).filter(
+        CoverageSubscription.partner_id == partner_id
+    )
     if status_filter:
-        query = query.filter(Policy.status == status_filter)
-    
-    policies = query.offset(skip).limit(limit).all()
-    return [p.to_dict() for p in policies]
+        query = query.filter(CoverageSubscription.status == status_filter)
+
+    subs = query.offset(skip).limit(limit).all()
+    return [s.to_dict() for s in subs]
 
 
-@router.get("/{policy_id}/certificate")
-def get_policy_certificate(
-    policy_id: str,
+@router.get("/{partner_id}/enrollments/{subscription_id}/certificate")
+def get_enrollment_certificate(
+    partner_id: str,
+    subscription_id: str,
     db: Session = Depends(get_db),
-    user: dict = Depends(verify_jwt)
+    user: dict = Depends(verify_jwt),
 ):
-    """Generate and download policy certificate."""
+    """Generate enrollment confirmation document."""
     from fastapi.responses import Response
     from app.services.pdf_service import generate_policy_certificate
-    
-    policy = PolicyService.get_policy(db, policy_id)
-    if not policy:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Policy not found"
-        )
-        
-    pdf_bytes = generate_policy_certificate(policy.to_dict())
-    
+
+    sub = EnrollmentService.get_enrollment(db, subscription_id)
+    if not sub:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Enrollment not found")
+
+    pdf_bytes = generate_policy_certificate(sub.to_dict())
+
     return Response(
         content=bytes(pdf_bytes),
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f"attachment; filename=policy_{policy.policy_number}.pdf"
-        }
+            "Content-Disposition": f"attachment; filename=enrollment_{sub.subscription_number}.pdf"
+        },
     )

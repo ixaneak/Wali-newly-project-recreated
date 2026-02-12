@@ -3,61 +3,60 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, History, FileText, User } from 'lucide-react';
-import { cn } from '@/lib/utils'; // Assuming cn utility exists, otherwise I'll need to create it or import differently
-
-// Fallback utility if not present
-// function cn(...classes: (string | undefined)[]) { return classes.filter(Boolean).join(' '); }
 
 export default function BottomNav() {
     const pathname = usePathname();
 
     const tabs = [
-        {
-            name: 'Accueil',
-            href: '/dashboard',
-            icon: Home,
-            active: pathname === '/dashboard',
-        },
-        {
-            name: 'Historique',
-            href: '/dashboard/history',
-            icon: History,
-            active: pathname?.startsWith('/dashboard/history'),
-        },
-        {
-            name: 'Mes Claims',
-            href: '/dashboard/claims',
-            icon: FileText,
-            active: pathname?.startsWith('/dashboard/claims'),
-        },
-        {
-            name: 'Profil',
-            href: '/dashboard/profile',
-            icon: User,
-            active: pathname?.startsWith('/dashboard/profile'),
-        },
+        { name: 'Home', href: '/dashboard', icon: Home, active: pathname === '/dashboard' },
+        { name: 'Historical', href: '/dashboard/history', icon: History, active: pathname?.startsWith('/dashboard/history') },
+        { name: 'Incidents', href: '/dashboard/claims', icon: FileText, active: pathname?.startsWith('/dashboard/claims') },
+        { name: 'Profile', href: '/dashboard/profile', icon: User, active: pathname?.startsWith('/dashboard/profile') },
     ];
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 flex items-center justify-around z-50 safe-area-bottom">
+        <div
+            style={{
+                position: 'fixed',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                backgroundColor: '#111827',
+                borderTop: '1px solid rgba(255,255,255,0.06)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-around',
+                height: 'calc(64px + env(safe-area-inset-bottom, 0px))',
+                paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+                zIndex: 50,
+            }}
+        >
             {tabs.map((tab) => (
                 <Link
                     key={tab.name}
                     href={tab.href}
-                    className="flex flex-col items-center justify-center w-full h-full"
+                    style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flex: 1,
+                        height: '100%',
+                        textDecoration: 'none',
+                        gap: 4,
+                    }}
                 >
                     <tab.icon
-                        className={cn(
-                            "w-6 h-6 mb-1 transition-colors",
-                            tab.active ? "text-emerald-600" : "text-gray-400"
-                        )}
+                        size={24}
+                        color={tab.active ? '#059669' : '#6B7280'}
+                        strokeWidth={1.5}
+                        fill={tab.active ? '#059669' : 'none'}
                     />
-                    <span
-                        className={cn(
-                            "text-[10px] font-medium transition-colors",
-                            tab.active ? "text-emerald-600" : "text-gray-400"
-                        )}
-                    >
+                    <span style={{
+                        fontSize: 10,
+                        fontWeight: 500,
+                        color: tab.active ? '#E5E7EB' : '#6B7280',
+                    }}>
                         {tab.name}
                     </span>
                 </Link>

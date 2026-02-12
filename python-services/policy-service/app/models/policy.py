@@ -1,12 +1,8 @@
-from sqlalchemy import Column, String, Integer, DateTime, Enum, ForeignKey, CheckConstraint, Text, ARRAY
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Column, String, Integer, DateTime, Enum, ForeignKey, CheckConstraint, Text, JSON
 from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
 import uuid
 import enum
-
 from app.core.database import Base
-
 
 class UserRole(str, enum.Enum):
     ARTISAN = "artisan"
@@ -14,95 +10,59 @@ class UserRole(str, enum.Enum):
     ADMIN = "admin"
     USER = "user"
 
-
-class PolicyStatus(str, enum.Enum):
+class SubscriptionStatus(str, enum.Enum):
     PENDING = "pending"
     ACTIVE = "active"
     SUSPENDED = "suspended"
     CANCELLED = "cancelled"
-
-
-class CoverageType(str, enum.Enum):
-    HEALTH = "health"
-    EQUIPMENT = "equipment"
-    THEFT = "theft"
-    BUNDLE = "bundle"
-
 
 class PaymentFrequency(str, enum.Enum):
     DAILY = "daily"
     WEEKLY = "weekly"
     MONTHLY = "monthly"
 
+class ProductType(str, enum.Enum):
+    FUNERAL = "funeral"  # Deuil - most demanded
+    HEALTH = "health"    # Simple hospitalization
+    TRANSPORT = "transport"  # Moto/gbaka drivers
+    AGRICULTURE = "agriculture"  # Cocoa/coffee farmers
 
-class Policy(Base):
-    """Insurance policy model."""
-    __tablename__ = "policies"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    # Firebase UID is a string, not a UUID
+class CoverageSubscription(Base):
+    __tablename__ = "coverage_subscriptions"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    policy_number = Column(String(50), unique=True, nullable=False)
-    
-    # Coverage details
-    coverage_type = Column(Enum(CoverageType), nullable=False)
-    coverage_details = Column(JSONB, nullable=False)
-    premium_amount = Column(Integer, nullable=False)
+    subscription_number = Column(String(50), unique=True, nullable=False)
+    partner_id = Column(String(50), ForeignKey("partners.id"), nullable=False, default="NSIA")
+    partner_product_id = Column(String(100), nullable=False)
+    partner_product_config = Column(JSON, nullable=False)
+    partner_quoted_amount = Column(Integer, nullable=False)
     payment_frequency = Column(Enum(PaymentFrequency), nullable=False)
-    status = Column(Enum(PolicyStatus), default=PolicyStatus.PENDING)
-    
-    # Payment tracking
+    coverage_type = Column(Enum(ProductType), default=ProductType.HEALTH)
+    status = Column(Enum(SubscriptionStatus), default=SubscriptionStatus.PENDING)
     mobile_money_ref = Column(String(100))
     last_payment_date = Column(DateTime(timezone=True))
     next_payment_date = Column(DateTime(timezone=True))
-    
-    # Policy lifecycle
     start_date = Column(DateTime(timezone=True))
     end_date = Column(DateTime(timezone=True))
     cancellation_reason = Column(Text)
-    
-    # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
-    # Constraints
-    __table_args__ = (
-        CheckConstraint('premium_amount > 0', name='positive_premium'),
-        CheckConstraint('end_date IS NULL OR end_date > start_date', name='valid_dates'),
-    )
-    
-    def to_dict(self):
-        """Convert policy to dictionary."""
-        return {
-            "id": str(self.id),
-            "user_id": str(self.user_id),
-            "policy_number": self.policy_number,
-            "coverage_type": self.coverage_type.value,
-            "coverage_details": self.coverage_details,
-            "premium_amount": self.premium_amount,
-            "payment_frequency": self.payment_frequency.value,
-            "status": self.status.value,
-            "mobile_money_ref": self.mobile_money_ref,
-            "last_payment_date": self.last_payment_date.isoformat() if self.last_payment_date else None,
-            "next_payment_date": self.next_payment_date.isoformat() if self.next_payment_date else None,
-            "start_date": self.start_date.isoformat() if self.start_date else None,
-            "end_date": self.end_date.isoformat() if self.end_date else None,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-        }
 
+    __table_args__ = (
+        CheckConstraint('partner_quoted_amount > 0', name='positive_quoted_amount'),
+        CheckConstraint('end_date IS NULL OR end_date > start_date', name='valid_dates_check'),
+    )
+
+Policy = CoverageSubscription
+PolicyStatus = SubscriptionStatus
 
 class KYCStatus(str, enum.Enum):
     VERIFIED = "verified"
     PENDING = "pending"
     REJECTED = "rejected"
 
-
 class User(Base):
-    """User model (simplified for policy service)."""
     __tablename__ = "users"
-    
-    # Firebase UID is the primary key
     id = Column(String(128), primary_key=True)
     phone = Column(String(20), unique=True, nullable=False)
     role = Column(Enum(UserRole), nullable=False)
@@ -111,15 +71,3 @@ class User(Base):
     avatar_url = Column(String(255))
     region = Column(String(100))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    def to_dict(self):
-        return {
-            "id": str(self.id),
-            "phone": self.phone,
-            "role": self.role.value,
-            "name": self.name,
-            "kyc_status": self.kyc_status.value,
-            "avatar_url": self.avatar_url,
-            "region": self.region,
-            "created_at": self.created_at.isoformat() if self.created_at else None
-        }

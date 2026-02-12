@@ -1,5 +1,4 @@
 from sqlalchemy import Column, String, DateTime, Numeric, Text, ForeignKey, Date, JSON
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from app.core.database import Base
 import uuid
@@ -7,9 +6,9 @@ import uuid
 class Claim(Base):
     __tablename__ = "claims"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(128), ForeignKey("users.id"), nullable=False)
-    policy_id = Column(UUID(as_uuid=True), ForeignKey("policies.id"), nullable=True)
+    policy_id = Column(String(36), ForeignKey("coverage_subscriptions.id"), nullable=True)
     
     # Claim details
     claim_type = Column(String(50), nullable=False)  # medical, accident, property, other

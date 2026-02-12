@@ -18,6 +18,7 @@ load_dotenv()
 from app.core.database import Base
 from app.models.policy import Policy  # Import all models here
 from app.models.claim import Claim
+from app.models.paydunya_transaction import PaydunyaTransaction
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

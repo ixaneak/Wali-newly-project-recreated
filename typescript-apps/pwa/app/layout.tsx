@@ -1,5 +1,6 @@
 import './globals.css'
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from 'sonner'
 
 export const metadata = {
     title: {
@@ -37,7 +38,10 @@ export default function RootLayout({
     children: React.ReactNode
 }) {
     return (
-        <html lang="fr" suppressHydrationWarning>
+        <html lang="fr" translate="no" className="notranslate" suppressHydrationWarning>
+            <head>
+                <meta name="google" content="notranslate" />
+            </head>
             <body>
                 <ThemeProvider
                     attribute="class"
@@ -46,6 +50,7 @@ export default function RootLayout({
                     disableTransitionOnChange
                 >
                     {children}
+                    <Toaster />
                 </ThemeProvider>
             </body>
         </html>

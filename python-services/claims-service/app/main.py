@@ -1,92 +1,115 @@
-"""Claims Service - FastAPI Application."""
-from fastapi import FastAPI, status
+"""
+Wali Incident Report Service — FastAPI Application
+
+Provides digital incident reporting technology to partner insurers.
+Wali does NOT process insurance claims or make payouts.
+
+NAF Code: 6201Z — Conseil en systèmes et logiciels informatiques
+"""
+from fastapi import FastAPI, status, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 import logging
 
 from app.core.config import get_settings
 from app.core.database import Base, engine
 from app.core.error_handlers import register_exception_handlers
 from app.routes import claims, photos, compliance
-import app.models.stubs  # Register stub models for ForeignKeys
+from app.core.security_headers import SecurityHeadersMiddleware
+from app.core.rate_limit import limiter
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+import app.models.stubs
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
-# Create FastAPI app
 app = FastAPI(
-    title="Wali Claims Service",
-    description="Insurance claims processing with fraud detection for Côte d'Ivoire",
-    version="1.0.0",
+    title="Wali Incident Report Service",
+    description=(
+        "B2B SaaS incident reporting technology for partner insurers. "
+        "Wali is a software vendor (NAF 6201Z), NOT a claims processor."
+    ),
+    version="2.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
-# Register security error handlers (sanitizes all exceptions)
 register_exception_handlers(app)
 
-# CORS middleware
+# Initialize Limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Security & CORS Middleware
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(SlowAPIMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routers
 app.include_router(claims.router)
 app.include_router(photos.router)
 app.include_router(compliance.router)
 
-# Health check endpoint (no auth required)
+
+@app.head("/health", status_code=status.HTTP_200_OK)
 @app.get("/health", status_code=status.HTTP_200_OK)
-def health_check():
-    """Health check endpoint for Docker/Kubernetes."""
+@limiter.limit("10/minute")
+def health_check(request: Request):
+    """SaaS platform health check."""
     return {
         "status": "healthy",
-        "service": "claims-service",
-        "environment": settings.environment
+        "service": "wali-incident-service",
+        "platform_model": "B2B_SAAS",
+        "is_saas_platform": True,
+        "is_claims_processor": False,
+        "environment": settings.environment,
     }
 
-# Root endpoint (no auth required)
+
 @app.get("/")
 def root():
-    """Root endpoint."""
     return {
-        "service": "Wali Claims Service",
-        "version": "1.0.0",
-        "docs": "/docs"
+        "service": "Wali Incident Report Service",
+        "version": "2.0.0",
+        "model": "B2B_SAAS",
+        "docs": "/docs",
     }
 
 
-
-# Startup event
 @app.on_event("startup")
 async def startup_event():
-    """Initialize on startup."""
-    logger.info(f"Starting Claims Service in {settings.environment} mode")
-    logger.info(f"MinIO endpoint: {settings.minio_endpoint}")
-    logger.info(f"Max image size: {settings.max_image_size_mb}MB")
+    logger.info("Starting Wali Incident Report Service (B2B SaaS)")
+    logger.info(f"Environment: {settings.environment}")
+    logger.info(f"CORS origins: {settings.allowed_origins}")
 
-# Shutdown event
+    # Initialize Firebase Admin SDK
+    try:
+        import firebase_admin
+        from firebase_admin import credentials
+        if not firebase_admin._apps:
+            firebase_admin.initialize_app()
+            logger.info("Firebase Admin SDK initialized")
+    except Exception as e:
+        logger.warning(f"Firebase Admin SDK not available: {e}")
+
+
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Cleanup on shutdown."""
-    logger.info("Shutting down Claims Service")
+    logger.info("Shutting down Wali Incident Report Service")
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8001,
-        reload=settings.environment == "development"
-    )
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8001, reload=settings.environment == "development")

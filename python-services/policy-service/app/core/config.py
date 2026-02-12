@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     jwt_expiration_hours: int = 24
     
     # Compliance
-    escrow_bank_account: str
+
     operating_bank_account: str
     tech_fee_percentage: int = 2
     tax_exemption_start_date: str = "2026-01-01"

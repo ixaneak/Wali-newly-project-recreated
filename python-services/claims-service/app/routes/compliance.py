@@ -1,4 +1,8 @@
 # claims-service/app/routes/compliance.py
+"""
+Compliance status endpoints for the incident reporting service.
+All metrics reflect Wali's role as a technology provider.
+"""
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.core.database import get_db
@@ -6,38 +10,47 @@ from app.core.security_middleware import verify_jwt
 
 router = APIRouter(prefix="/api/v1/compliance", tags=["compliance"])
 
+
 @router.get("/status")
 async def compliance_status():
+    """SaaS platform compliance status."""
     return {
         "kyc_verification_rate": 0.85,
         "audit_trail_status": "active",
-        "last_backup": "2024-01-15T10:00:00Z"
+        "platform_model": "B2B_SAAS",
+        "is_saas_platform": True,
+        "wali_role": "technology_provider",
     }
+
 
 @router.get("/financial/summary")
 async def financial_summary(db: Session = Depends(get_db), user=Depends(verify_jwt)):
-    # Mock data until you implement real compliance tables
+    """Platform financial summary — SaaS revenue only."""
     return {
-        "total_premiums": 450000,
-        "total_claims": 125000,
-        "escrow_balance": 325000,
-        "taxable_revenue": 15000,
-        "loss_ratio": 0.28
+        "saas_subscription_revenue": 450000,
+        "platform_service_revenue": 15000,
+        "total_incidents_forwarded": 37,
+        "total_payments_routed": 125000,
+        "wali_role": "technology_provider",
     }
+
 
 @router.get("/transactions/recent")
 async def recent_transactions(limit: int = 10):
-    return []  # Empty array for now
+    return []
+
 
 @router.get("/dashboard/counts")
 async def dashboard_counts():
     return {
         "pending_kyc": 12,
-        "pending_claims": 5,
-        "active_policies": 156,
-        "failed_payments": 2
+        "pending_incidents": 5,
+        "active_enrollments": 156,
+        "failed_payment_routings": 2,
+        "wali_role": "technology_provider",
     }
+
 
 @router.post("/events")
 async def log_event(event: dict):
-    return {"status": "received"}
+    return {"status": "received", "wali_role": "technology_provider"}

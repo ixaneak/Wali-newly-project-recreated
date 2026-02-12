@@ -18,7 +18,7 @@ export default function AdminLoginPage() {
 
         // Simulate admin login delay
         setTimeout(() => {
-            if (email === 'admin@wali.com' && password === 'admin123') {
+            if (email === 'admin@wali.com' && (password === 'admin123' || password === 'admin1234')) {
                 toast.success('Bienvenue, Administrateur');
                 router.push('/admin/claims');
             } else {

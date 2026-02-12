@@ -9,8 +9,8 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-slate-950 pb-20">
-            <div className="max-w-md mx-auto min-h-screen bg-gray-50 dark:bg-slate-950 relative shadow-2xl">
+        <div style={{ minHeight: '100vh', backgroundColor: '#111827' }}>
+            <div style={{ maxWidth: 448, margin: '0 auto', minHeight: '100vh', backgroundColor: '#111827', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
                 {children}
                 <BottomNav />
             </div>

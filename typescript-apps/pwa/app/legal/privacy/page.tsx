@@ -130,7 +130,7 @@ function PrivacyFR() {
                 <li>Création et gestion de votre compte utilisateur</li>
                 <li>Fourniture des services de micro-assurance</li>
                 <li>Traitement des paiements et transactions</li>
-                <li>Gestion des réclamations et sinistres</li>
+                <li>Gestion des incidents</li>
                 <li>Sécurité et prévention de la fraude</li>
                 <li>Respect de nos obligations légales et réglementaires</li>
                 <li>Amélioration de nos services (avec anonymisation)</li>

@@ -15,7 +15,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ../../shared/schemas:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wali_user"]
+      test: [ "CMD-SHELL", "pg_isready -U wali_user" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,7 +30,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -49,7 +49,7 @@ services:
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
       interval: 30s
       timeout: 20s
       retries: 3
@@ -67,7 +67,7 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -75,8 +75,8 @@ services:
   # ==================== Services (Development - Hot Reload) ====================
   policy-service:
     build:
-      context: ../../services/policy-service
-      dockerfile: Dockerfile.dev
+      context: ../python-services/policy-service
+      dockerfile: Dockerfile
     container_name: wali-policy-service
     ports:
       - "8000:8000"
@@ -88,7 +88,7 @@ services:
       OPERATING_BANK_ACCOUNT: CI09876543210987654321
       ENVIRONMENT: development
     volumes:
-      - ../../services/policy-service:/app
+      - ../python-services/policy-service:/app
     depends_on:
       postgres:
         condition: service_healthy
@@ -96,38 +96,39 @@ services:
         condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-  payment-service:
-    build:
-      context: ../../services/payment-service
-      dockerfile: Dockerfile.dev
-    container_name: wali-payment-service
-    ports:
-      - "8080:8080"
-    environment:
-      DATABASE_URL: postgresql://wali_user:wali_dev_password@postgres:5432/wali
-      REDIS_URL: redis://redis:6379
-      PORT: "8080"
-      ORANGE_CLIENT_ID: ${ORANGE_CLIENT_ID:-}
-      ORANGE_CLIENT_SECRET: ${ORANGE_CLIENT_SECRET:-}
-      MTN_API_USER: ${MTN_API_USER:-}
-      MTN_API_KEY: ${MTN_API_KEY:-}
-      MTN_SUBSCRIPTION_KEY: ${MTN_SUBSCRIPTION_KEY:-}
-      MTN_TARGET_ENVIRONMENT: sandbox
-      WAVE_API_KEY: ${WAVE_API_KEY:-}
-      WAVE_SECRET_KEY: ${WAVE_SECRET_KEY:-}
-    volumes:
-      - ../../services/payment-service:/app
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+#   payment-service:
+#     build:
+#       context: ../go-services/payment-service
+#       dockerfile: Dockerfile
+#     container_name: wali-payment-service
+#     ports:
+#       - "8080:8080"
+#     environment:
+#       DATABASE_URL: postgresql://wali_user:wali_dev_password@postgres:5432/wali
+#       REDIS_URL: redis://redis:6379
+#       PORT: "8080"
+#       ORANGE_CLIENT_ID: ${ORANGE_CLIENT_ID:-}
+#       ORANGE_CLIENT_SECRET: ${ORANGE_CLIENT_SECRET:-}
+#       MTN_API_USER: ${MTN_API_USER:-}
+#       MTN_API_KEY: ${MTN_API_KEY:-}
+#       MTN_SUBSCRIPTION_KEY: ${MTN_SUBSCRIPTION_KEY:-}
+#       MTN_TARGET_ENVIRONMENT: sandbox
+#       WAVE_API_KEY: ${WAVE_API_KEY:-}
+#       WAVE_SECRET_KEY: ${WAVE_SECRET_KEY:-}
+#     volumes:
+#       - ../go-services/payment-service:/app
+#     depends_on:
+#       postgres:
+#         condition: service_healthy
+#       redis:
+#         condition: service_healthy
 
 volumes:
   postgres_data:
   redis_data:
   minio_data:
   rabbitmq_data:
+
 
 networks:
   default:

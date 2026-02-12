@@ -33,6 +33,10 @@ const nextConfig = {
                 destination: 'http://localhost:8000/api/v1/compliance/:path*',
             },
             {
+                source: '/api/v1/pharmacy/:path*',
+                destination: 'http://localhost:8000/api/v1/pharmacy/:path*',
+            },
+            {
                 source: '/api/v1/payments/:path*',
                 destination: 'http://localhost:8080/api/v1/payments/:path*',
             },

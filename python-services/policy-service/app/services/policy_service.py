@@ -1,233 +1,250 @@
-"""Policy service business logic."""
+"""
+Enrollment Service (was: PolicyService)
+
+Manages artisan enrollment into partner insurer products.
+Wali facilitates enrollment; the partner insurer owns the coverage.
+We do NOT calculate premiums, set rates, or perform underwriting.
+"""
 from datetime import datetime, timedelta
 from typing import Optional
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
+import uuid
+import uuid
+import logging
+import requests
 
-from app.models.policy import Policy, PolicyStatus, CoverageType, PaymentFrequency
+
+from app.models.policy import (
+    CoverageSubscription, SubscriptionStatus, PaymentFrequency,
+)
 from app.core.config import get_settings
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
-class PremiumCalculator:
-    """Calculate insurance premiums based on coverage type."""
-    
-    PREMIUM_RANGES = {
-        CoverageType.HEALTH: (100, 200),      # XOF 100-200/day
-        CoverageType.EQUIPMENT: (150, 300),   # XOF 150-300/day
-        CoverageType.THEFT: (200, 500),       # XOF 200-500/day
-        CoverageType.BUNDLE: (300, 500),      # XOF 300-500/day
-    }
-    
-    @classmethod
-    def calculate_daily_premium(
-        cls, 
-        coverage_type: CoverageType, 
-        coverage_amount: int,
-        risk_factors: Optional[dict] = None
-    ) -> int:
-        """
-        Calculate daily premium based on coverage type and amount.
-        
-        Args:
-            coverage_type: Type of coverage
-            coverage_amount: Maximum coverage amount in XOF
-            risk_factors: Optional dict with region, profession, etc.
-        
-        Returns:
-            Daily premium in XOF (as integer)
-        """
-        min_premium, max_premium = cls.PREMIUM_RANGES[coverage_type]
-        
-        # Base premium is proportional to coverage amount
-        # Example: XOF 50,000 coverage = XOF 150/day for health
-        base_rate = 0.003  # 0.3% per day
-        calculated = int(coverage_amount * base_rate)
-        
-        # Clamp to valid range
-        premium = max(min_premium, min(calculated, max_premium))
-        
-        # Apply risk factors
-        if risk_factors:
-            region = risk_factors.get("region", "")
-            # Higher risk in certain regions
-            if region in ["Abidjan", "San-Pédro"]:
-                premium = int(premium * 1.1)
-        
-        return premium
-    
-    @classmethod
-    def calculate_next_payment_date(
-        cls, 
-        frequency: PaymentFrequency, 
-        from_date: Optional[datetime] = None
-    ) -> datetime:
-        """Calculate next payment date based on frequency."""
-        base_date = from_date or datetime.now()
-        
-        if frequency == PaymentFrequency.DAILY:
-            return base_date + timedelta(days=1)
-        elif frequency == PaymentFrequency.WEEKLY:
-            return base_date + timedelta(weeks=1)
-        elif frequency == PaymentFrequency.MONTHLY:
-            # Add roughly 30 days for monthly
-            return base_date + timedelta(days=30)
-        
-        return base_date
+def _calculate_next_payment_date(
+    frequency: PaymentFrequency,
+    from_date: Optional[datetime] = None,
+) -> datetime:
+    """Calculate next payment date based on frequency."""
+    base = from_date or datetime.now()
+    if frequency == PaymentFrequency.DAILY:
+        return base + timedelta(days=1)
+    elif frequency == PaymentFrequency.WEEKLY:
+        return base + timedelta(weeks=1)
+    else:  # MONTHLY
+        return base + timedelta(days=30)
 
 
-class PolicyService:
-    """Service for managing insurance policies."""
-    
+class EnrollmentService:
+    """
+    Service for managing artisan enrollments with partner insurers.
+
+    IMPORTANT: Wali does NOT set premiums or calculate rates.
+    The partner_quoted_amount comes from the partner insurer's
+    product catalog, not from any internal calculation.
+    """
+
     @staticmethod
-    def create_policy(
+    def create_enrollment(
         db: Session,
         user_id: str,
-        coverage_type: CoverageType,
-        coverage_details: dict,
-        payment_frequency: PaymentFrequency,
-        region: Optional[str] = None
-    ) -> Policy:
+        partner_id: str,
+            partner_product_id: str,
+            partner_product_config: dict,
+            payment_frequency: PaymentFrequency,
+            is_test: bool = False,
+        ) -> CoverageSubscription:
         """
-        Create a new insurance policy.
-        
+        Enroll artisan in partner insurer's coverage product.
+
         Args:
             db: Database session
-            user_id: User UUID
-            coverage_type: Type of coverage
-            coverage_details: Dict with coverage specifics (max_amount, etc.)
-            payment_frequency: How often to pay premiums
-            region: User region for risk calculation
-        
-        Returns:
-            Created Policy object
-        """
-        # Calculate premium
-        coverage_amount = coverage_details.get("max_coverage_amount", 50000)
-        risk_factors = {"region": region} if region else None
-        
-        daily_premium = PremiumCalculator.calculate_daily_premium(
-            coverage_type, 
-            coverage_amount, 
-            risk_factors
-        )
-        
-        # Adjust for payment frequency
-        if payment_frequency == PaymentFrequency.DAILY:
-            premium_amount = daily_premium
-        elif payment_frequency == PaymentFrequency.WEEKLY:
-            premium_amount = daily_premium * 7
-        else:  # MONTHLY
-            premium_amount = daily_premium * 30
-        
-        # Create policy
-        # Generate simple policy number
-        import uuid
-        policy_number = f"POL-{str(uuid.uuid4())[:8].upper()}"
+            user_id: Artisan's user ID
+            partner_id: Partner insurer (e.g. "NSIA")
+            partner_product_id: Product code from partner catalog
+            partner_product_config: Coverage details (must include coverage_amount)
+            payment_frequency: How often artisan pays
+            is_test: If True, bypass partner API and create ACTIVE policy immediately
 
-        policy = Policy(
+        Returns:
+            Created CoverageSubscription
+        """
+        partner_quoted_amount = 0
+        subscription_status = SubscriptionStatus.PENDING
+        start_date = None
+        end_date = None
+        last_payment_date = None
+        next_payment_date = None
+
+        if is_test:
+            # TEST MODE: Bypass partner API, mock successful quote and payment
+            logger.info("TEST MODE: Creating active policy for user %s", user_id)
+            partner_quoted_amount = 1000  # Mock amount
+            subscription_status = SubscriptionStatus.ACTIVE
+            start_date = datetime.now()
+            last_payment_date = datetime.now()
+            next_payment_date = _calculate_next_payment_date(payment_frequency, start_date)
+            # End date could be set based on frequency or default strict duration, 
+            # but usually it's open-ended until cancelled or expired.
+            # Let's set it to None for indefinitely active, or +1 year/month.
+        else:
+            # 1. Fetch Quote from Partner (SaaS Compliance)
+            # We generally shouldn't hardcode localhost, but for this Mock Sprint it is required.
+            # In prod, this would use partner.api_url from DB.
+            try:
+                # Extract coverage amount from config or default to 0
+                coverage_amt = partner_product_config.get("coverage_amount", 1000000)
+                
+                response = requests.post(
+                    "http://localhost:8008/v1/quotes",
+                    json={
+                        "product_code": partner_product_id,
+                        "coverage_amount": coverage_amt
+                    },
+                    timeout=5
+                )
+                response.raise_for_status()
+                quote_data = response.json()
+                
+                # The PARTNER sets the price. We just record it.
+                partner_quoted_amount = quote_data["premium_amount"]
+                partner_quote_id = quote_data["quote_id"]
+                
+                logger.info("Fetched quote from partner: %s = %d XOF", partner_quote_id, partner_quoted_amount)
+                
+            except Exception as e:
+                logger.error("Failed to fetch quote from partner: %s", e)
+                raise ValueError("Could not obtain pricing from partner insurer. Please try again.")
+
+        subscription_number = f"SUB-{str(uuid.uuid4())[:8].upper()}"
+
+        subscription = CoverageSubscription(
             user_id=user_id,
-            policy_number=policy_number,
-            coverage_type=coverage_type,
-            coverage_details=coverage_details,
-            premium_amount=premium_amount,
+            subscription_number=subscription_number,
+            partner_id=partner_id,
+            partner_product_id=partner_product_id,
+            partner_product_config=partner_product_config,
+            partner_quoted_amount=partner_quoted_amount,
+            # partner_quote_id=partner_quote_id,  # TODO: Add column to DB? For now just log it.
             payment_frequency=payment_frequency,
-            status=PolicyStatus.PENDING
+            status=subscription_status,
+            start_date=start_date,
+            last_payment_date=last_payment_date,
+            next_payment_date=next_payment_date,
+            end_date=end_date,
         )
-        
+
         try:
-            print(f"DEBUG: Attempting to create policy for user {user_id}")
-            db.add(policy)
-            print("DEBUG: Policy added to session, committing...")
+            db.add(subscription)
             db.commit()
-            print("DEBUG: Transaction committed.")
-            db.refresh(policy)
-            print(f"DEBUG: Policy refreshed, final ID: {policy.id}")
-            return policy
+            db.refresh(subscription)
+            logger.info(
+                "Enrollment %s created for user %s with partner %s (product: %s, amount: %d)",
+                subscription_number, user_id, partner_id, partner_product_id, partner_quoted_amount,
+            )
+            return subscription
         except Exception as e:
-            with open("debug_error.log", "a") as f:
-                f.write(f"\n--- ERROR AT {datetime.now()} ---\n")
-                f.write(f"User ID: {user_id}\n")
-                f.write(f"Policy Data: {policy.to_dict() if hasattr(policy, 'to_dict') else 'No to_dict'}\n")
-                f.write(f"Error: {e}\n")
-                import traceback
-                traceback.print_exc(file=f)
-            print(f"CRITICAL ERROR creating policy: {e}")
             db.rollback()
-            raise ValueError(f"Failed to create policy: {e}")
-    
+            logger.error("Failed to create enrollment: %s", e)
+            raise ValueError(f"Failed to create enrollment: {e}")
+
     @staticmethod
-    def activate_policy(db: Session, policy_id: str, transaction_ref: str) -> Policy:
-        """Activate a policy after successful payment."""
-        policy = db.query(Policy).filter(Policy.id == policy_id).first()
-        if not policy:
-            raise ValueError("Policy not found")
-        
-        policy.status = PolicyStatus.ACTIVE
-        policy.mobile_money_ref = transaction_ref
-        policy.start_date = datetime.now()
-        policy.last_payment_date = datetime.now()
-        policy.next_payment_date = PremiumCalculator.calculate_next_payment_date(
-            policy.payment_frequency
-        )
-        
+    def confirm_enrollment(
+        db: Session,
+        subscription_id: str,
+        transaction_ref: str,
+    ) -> CoverageSubscription:
+        """
+        Confirm enrollment after payment has been ROUTED to partner.
+
+        Note: This is triggered when the partner confirms receipt of
+        the artisan's payment, not by Wali receiving the payment.
+        """
+        sub = db.query(CoverageSubscription).filter(
+            CoverageSubscription.id == subscription_id
+        ).first()
+        if not sub:
+            raise ValueError("Subscription not found")
+
+        sub.status = SubscriptionStatus.ACTIVE
+        sub.mobile_money_ref = transaction_ref
+        sub.start_date = datetime.now()
+        sub.last_payment_date = datetime.now()
+        sub.next_payment_date = _calculate_next_payment_date(sub.payment_frequency)
+
         db.commit()
-        db.refresh(policy)
-        return policy
-    
+        db.refresh(sub)
+        logger.info("Enrollment %s confirmed (ref: %s)", sub.subscription_number, transaction_ref)
+        return sub
+
     @staticmethod
-    def get_user_policies(db: Session, user_id: str, status: Optional[PolicyStatus] = None):
-        """Get all policies for a user."""
-        query = db.query(Policy).filter(Policy.user_id == user_id)
-        
+    def get_user_enrollments(
+        db: Session,
+        user_id: str,
+        status: Optional[SubscriptionStatus] = None,
+    ):
+        """Get all enrollments for an artisan."""
+        query = db.query(CoverageSubscription).filter(
+            CoverageSubscription.user_id == user_id
+        )
         if status:
-            query = query.filter(Policy.status == status)
-        
-        return query.order_by(Policy.created_at.desc()).all()
-    
+            query = query.filter(CoverageSubscription.status == status)
+        return query.order_by(CoverageSubscription.created_at.desc()).all()
+
     @staticmethod
-    def get_policy(db: Session, policy_id: str) -> Optional[Policy]:
-        """Get a single policy by ID."""
-        return db.query(Policy).filter(Policy.id == policy_id).first()
-    
+    def get_enrollment(db: Session, subscription_id: str) -> Optional[CoverageSubscription]:
+        """Get a single enrollment by ID."""
+        return db.query(CoverageSubscription).filter(
+            CoverageSubscription.id == subscription_id
+        ).first()
+
     @staticmethod
-    def update_policy_payment(
-        db: Session, 
-        policy_id: str, 
-        transaction_ref: str
-    ) -> Policy:
-        """Update policy after premium payment."""
-        policy = db.query(Policy).filter(Policy.id == policy_id).first()
-        if not policy:
-            raise ValueError("Policy not found")
-        
-        policy.last_payment_date = datetime.now()
-        policy.next_payment_date = PremiumCalculator.calculate_next_payment_date(
-            policy.payment_frequency,
-            from_date=datetime.now()
+    def record_payment_routing(
+        db: Session,
+        subscription_id: str,
+        transaction_ref: str,
+    ) -> CoverageSubscription:
+        """Update enrollment after payment has been routed to partner."""
+        sub = db.query(CoverageSubscription).filter(
+            CoverageSubscription.id == subscription_id
+        ).first()
+        if not sub:
+            raise ValueError("Subscription not found")
+
+        sub.last_payment_date = datetime.now()
+        sub.next_payment_date = _calculate_next_payment_date(
+            sub.payment_frequency, from_date=datetime.now()
         )
-        policy.mobile_money_ref = transaction_ref
-        
+        sub.mobile_money_ref = transaction_ref
+
         db.commit()
-        db.refresh(policy)
-        return policy
-    
+        db.refresh(sub)
+        return sub
+
     @staticmethod
-    def cancel_policy(
-        db: Session, 
-        policy_id: str, 
-        reason: str
-    ) -> Policy:
-        """Cancel a policy."""
-        policy = db.query(Policy).filter(Policy.id == policy_id).first()
-        if not policy:
-            raise ValueError("Policy not found")
-        
-        policy.status = PolicyStatus.CANCELLED
-        policy.cancellation_reason = reason
-        policy.end_date = datetime.now()
-        
+    def cancel_enrollment(
+        db: Session,
+        subscription_id: str,
+        reason: str,
+    ) -> CoverageSubscription:
+        """Cancel an enrollment."""
+        sub = db.query(CoverageSubscription).filter(
+            CoverageSubscription.id == subscription_id
+        ).first()
+        if not sub:
+            raise ValueError("Subscription not found")
+
+        sub.status = SubscriptionStatus.CANCELLED
+        sub.cancellation_reason = reason
+        sub.end_date = datetime.now()
+
         db.commit()
-        db.refresh(policy)
-        return policy
+        db.refresh(sub)
+        logger.info("Enrollment %s cancelled: %s", sub.subscription_number, reason)
+        return sub
+
+
+# Backward-compatible alias
+PolicyService = EnrollmentService

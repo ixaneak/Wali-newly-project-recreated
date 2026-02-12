@@ -1,21 +1,23 @@
 "use client";
 
+// ... imports
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Calendar, DollarSign, FileText, Image as ImageIcon, Phone } from 'lucide-react';
-import { CLAIM_TYPE_CONFIG, ClaimType } from '@/types/claims';
+import { CLAIM_TYPE_CONFIG, ClaimType, ClaimStatus } from '@/types/claims';
 import ClaimStatusBadge from '@/components/claims/ClaimStatusBadge';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { claimsService } from '@/lib/api-client';
-import type { ClaimData } from '@/lib/api-client';
+import type { IncidentReport, IncidentStatus } from '@/types/app'; // Update imports
 
 export default function ClaimDetailsPage() {
     const router = useRouter();
     const params = useParams();
     const claimId = params?.id as string;
 
-    const [claim, setClaim] = useState<ClaimData | null>(null);
+    // Update state to IncidentReport
+    const [claim, setClaim] = useState<IncidentReport | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +55,7 @@ export default function ClaimDetailsPage() {
         return (
             <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center p-6">
                 <div className="text-center">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Claim non trouvé</h2>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Incident non trouvé</h2>
                     <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
                     <button
                         onClick={() => router.back()}
@@ -66,7 +68,15 @@ export default function ClaimDetailsPage() {
         );
     }
 
-    const typeConfig = CLAIM_TYPE_CONFIG[claim.claim_type as ClaimType];
+    // Map IncidentReport type to ClaimType config
+    const typeConfig = CLAIM_TYPE_CONFIG[claim.type as ClaimType] || CLAIM_TYPE_CONFIG.other;
+
+    // Map IncidentStatus to Legacy ClaimStatus
+    const legacyStatus: ClaimStatus = (
+        claim.status === 'partner_resolved' ? 'approved' :
+            claim.status === 'partner_reviewing' ? 'under_review' :
+                'submitted'
+    );
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-slate-950 pb-32">
@@ -88,7 +98,7 @@ export default function ClaimDetailsPage() {
                         <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                             {typeConfig.label}
                         </h1>
-                        <ClaimStatusBadge status={claim.status} />
+                        <ClaimStatusBadge status={legacyStatus} />
                     </div>
                 </div>
             </div>
@@ -99,10 +109,10 @@ export default function ClaimDetailsPage() {
                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-gray-100 dark:border-slate-800">
                     <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-2">
                         <DollarSign className="w-4 h-4" />
-                        <span className="text-sm font-medium">Montant réclamé</span>
+                        <span className="text-sm font-medium">Montant déclaré</span>
                     </div>
                     <div className="text-3xl font-bold text-gray-900 dark:text-white">
-                        {claim.amount.toLocaleString()} <span className="text-xl text-gray-400">XOF</span>
+                        {claim.reported_amount.toLocaleString()} <span className="text-xl text-gray-400">XOF</span>
                     </div>
                 </div>
 
@@ -113,7 +123,7 @@ export default function ClaimDetailsPage() {
                     <div className="space-y-4">
                         <DetailRow
                             icon={Calendar}
-                            label="Date du sinistre"
+                            label="Date de l'incident"
                             value={format(new Date(claim.incident_date), 'dd MMMM yyyy', { locale: fr })}
                         />
                         <DetailRow
@@ -123,10 +133,18 @@ export default function ClaimDetailsPage() {
                         />
                         <DetailRow
                             icon={FileText}
-                            label="ID du claim"
+                            label="Référence incident"
                             value={claim.id}
                             mono
                         />
+                        {claim.partner_reference && (
+                            <DetailRow
+                                icon={FileText}
+                                label="Référence partenaire (NSIA)"
+                                value={claim.partner_reference}
+                                mono
+                            />
+                        )}
                     </div>
                 </div>
 
@@ -151,9 +169,16 @@ export default function ClaimDetailsPage() {
                                     key={index}
                                     className="aspect-square bg-gray-100 dark:bg-slate-800 rounded-xl overflow-hidden"
                                 >
-                                    <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                        <ImageIcon className="w-12 h-12" />
-                                    </div>
+                                    {/* Handle both URL strings and potentially objects if API changes, though types say string[] */}
+                                    <img
+                                        src={photo}
+                                        alt={`Preuve ${index + 1}`}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                            // Fallback if image fails to load
+                                            (e.target as HTMLImageElement).src = `https://placehold.co/600x600?text=Image+${index + 1}`;
+                                        }}
+                                    />
                                 </div>
                             ))}
                         </div>
@@ -161,27 +186,17 @@ export default function ClaimDetailsPage() {
                 )}
 
                 {/* Review Notes */}
-                {claim.review_notes && (
-                    <div className={`rounded-2xl p-6 border ${claim.status === 'rejected'
-                        ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-                        : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'
-                        }`}>
-                        <h3 className={`font-bold mb-2 ${claim.status === 'rejected'
-                            ? 'text-red-900 dark:text-red-400'
-                            : 'text-emerald-900 dark:text-emerald-400'
-                            }`}>
-                            {claim.status === 'rejected' ? 'Motif du rejet' : 'Notes de révision'}
+                {claim.partner_notes && (
+                    <div className="rounded-2xl p-6 border bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800">
+                        <h3 className="font-bold mb-2 text-emerald-900 dark:text-emerald-400">
+                            Notes de l'assureur
                         </h3>
-                        <p className={
-                            claim.status === 'rejected'
-                                ? 'text-red-700 dark:text-red-300'
-                                : 'text-emerald-700 dark:text-emerald-300'
-                        }>
-                            {claim.review_notes}
+                        <p className="text-emerald-700 dark:text-emerald-300">
+                            {claim.partner_notes}
                         </p>
-                        {claim.reviewed_at && (
+                        {claim.resolved_at && (
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                Révisé le {format(new Date(claim.reviewed_at), 'dd MMM yyyy', { locale: fr })}
+                                Résolu le {format(new Date(claim.resolved_at), 'dd MMM yyyy', { locale: fr })}
                             </p>
                         )}
                     </div>

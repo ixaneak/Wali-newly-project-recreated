@@ -1,4 +1,9 @@
-"""Compliance Service - FastAPI Application."""
+"""
+Wali Compliance Service — FastAPI Application.
+
+B2B SaaS platform compliance, reporting, and audit trails.
+Wali is a software vendor (NAF 6201Z), NOT an insurer or broker.
+"""
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -9,12 +14,11 @@ from app.routes import compliance, dashboard
 from app.models.financial_event import FinancialEvent
 from app.models.tax_exemption import TaxExemptionTracking
 
-# Initialize database tables
 Base.metadata.create_all(bind=engine)
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -22,8 +26,11 @@ settings = get_settings()
 
 app = FastAPI(
     title="Wali Compliance Service",
-    description="COSUMAF compliance and audit trail management for Côte d'Ivoire",
-    version="1.0.0"
+    description=(
+        "B2B SaaS platform compliance and audit trails. "
+        "Wali is a software vendor (NAF 6201Z), NOT an insurer."
+    ),
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -37,18 +44,24 @@ app.add_middleware(
 app.include_router(compliance.router)
 app.include_router(dashboard.router)
 
+
 @app.get("/health")
 def health_check():
     return {
         "status": "healthy",
-        "service": "compliance-service"
+        "service": "wali-compliance-service",
+        "platform_model": "B2B_SAAS",
+        "is_saas_platform": True,
+        "is_insurer": False,
     }
+
 
 @app.get("/")
 def root():
     return {
         "service": "Wali Compliance Service",
-        "version": "1.0.0"
+        "version": "2.0.0",
+        "model": "B2B_SAAS",
     }
 
 

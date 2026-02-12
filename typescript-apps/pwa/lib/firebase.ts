@@ -11,5 +11,17 @@ const firebaseConfig = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
+
+// Initialize App Check (client-side only)
+if (typeof window !== 'undefined') {
+    import('firebase/app-check').then(({ initializeAppCheck, ReCaptchaV3Provider }) => {
+        // Use a dummy key if env var is missing to prevent crash, though it won't work for real check
+        const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';
+        initializeAppCheck(app, {
+            provider: new ReCaptchaV3Provider(siteKey),
+            isTokenAutoRefreshEnabled: true
+        });
+    }).catch(err => console.error("App Check init failed", err));
+}

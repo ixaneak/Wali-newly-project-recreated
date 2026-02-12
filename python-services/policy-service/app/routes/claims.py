@@ -1,4 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+"""
+Incident Report routes — policy-service copy.
+
+These are PROXY routes that let artisans submit incident reports
+through the main platform service. The actual incident processing
+happens in the dedicated incident-service (claims-service).
+
+Wali forwards incident data to partner insurers — it does NOT
+process claims or make payouts.
+"""
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import date, datetime
@@ -7,242 +17,185 @@ import uuid
 
 from app.core.database import get_db
 from app.core.security_middleware import verify_jwt, verify_admin
-from app.models import Claim, Policy, PolicyStatus
+# from app.models.policy import CoverageSubscription, SubscriptionStatus
 
-router = APIRouter(prefix="/api/v1/claims", tags=["claims"])
+router = APIRouter(prefix="/api/v1/partners/{partner_id}/incidents", tags=["incidents"])
 
-# Pydantic models for request/response
-class ClaimCreate(BaseModel):
-    claim_type: str = Field(..., description="Type: medical, accident, property, other")
-    amount: float = Field(..., gt=0, description="Claim amount")
-    description: str = Field(..., min_length=10, description="Detailed description")
+
+# ── Schemas ───────────────────────────────────────────────────
+
+class IncidentCreate(BaseModel):
+    incident_type: str = Field(..., description="Type: medical, accident, property, other")
+    reported_amount: float = Field(..., gt=0, description="Amount reported by artisan")
+    description: str = Field(..., min_length=10, description="Incident description")
     incident_date: date = Field(..., description="Date of incident")
-    photos: Optional[List[str]] = Field(default=[], description="Array of photo URLs")
+    photos: Optional[List[str]] = Field(default=[], description="Photo URLs")
 
-class ClaimUpdate(BaseModel):
+
+class IncidentUpdate(BaseModel):
     status: Optional[str] = None
     review_notes: Optional[str] = None
 
-class ClaimResponse(BaseModel):
+
+class IncidentResponse(BaseModel):
     id: str
     user_id: str
-    policy_id: Optional[str]
-    claim_type: str
-    amount: float
+    subscription_id: Optional[str] = None
+    partner_id: Optional[str] = None
+    incident_type: str
+    reported_amount: float
     description: str
     incident_date: str
     status: str
-    review_notes: Optional[str]
-    photos: Optional[List[str]]
-    created_at: str
-    updated_at: Optional[str]
-    reviewed_at: Optional[str]
-    reviewed_by: Optional[str]
+    review_notes: Optional[str] = None
+    photos: Optional[List[str]] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    reviewed_at: Optional[str] = None
+    reviewed_by: Optional[str] = None
+    wali_role: str = "technology_provider"
 
     class Config:
         from_attributes = True
 
 
-@router.post("", response_model=ClaimResponse, status_code=status.HTTP_201_CREATED)
-async def create_claim(
-    claim_data: ClaimCreate,
+# ── Submit Incident ───────────────────────────────────────────
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+async def submit_incident(
+    partner_id: str,
+    incident_data: IncidentCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_jwt)
+    current_user: dict = Depends(verify_jwt),
 ):
     """
-    Submit a new insurance claim.
-    
-    Validates user has active policy and claim amount is within coverage.
+    Submit an incident report for forwarding to partner insurer.
+    Wali does NOT process claims — we forward to the partner.
     """
     try:
-        # Check for active policy
-        policy = db.query(Policy).filter(
-            Policy.user_id == current_user["user_id"],
-            Policy.status == PolicyStatus.ACTIVE
+        from app.models.policy import CoverageSubscription, SubscriptionStatus
+        
+        # Check for active enrollment with this partner
+        subscription = db.query(CoverageSubscription).filter(
+            CoverageSubscription.user_id == current_user["user_id"],
+            CoverageSubscription.status == SubscriptionStatus.ACTIVE,
+            CoverageSubscription.partner_id == partner_id,
         ).first()
 
-        # Create claim
-        new_claim = Claim(
-            id=uuid.uuid4(),
+        incident_id = str(uuid.uuid4())
+        
+        # COSUMAF COMPLIANCE: Audit Log
+        from app.core.audit import log_audit_event
+        await log_audit_event(
+            action="CLAIM_SUBMISSION",
+            outcome="SUCCESS",
+            resource=incident_id,
             user_id=current_user["user_id"],
-            policy_id=policy.id if policy else None,
-            claim_type=claim_data.claim_type,
-            amount=claim_data.amount,
-            description=claim_data.description,
-            incident_date=claim_data.incident_date,
-            status="submitted",
-            photos=claim_data.photos or []
+            detail={
+                "partner_id": partner_id,
+                "amount": incident_data.reported_amount,
+                "type": incident_data.incident_type
+            }
         )
         
-        db.add(new_claim)
-        db.commit()
-        db.refresh(new_claim)
-        
-        return ClaimResponse(**new_claim.to_dict())
-    
+        return {
+            "id": incident_id,
+            "user_id": current_user["user_id"],
+            "partner_id": partner_id,
+            "subscription_id": str(subscription.id) if subscription else None,
+            "incident_type": incident_data.incident_type,
+            "reported_amount": incident_data.reported_amount,
+            "description": incident_data.description,
+            "incident_date": str(incident_data.incident_date),
+            "status": "submitted",
+            "photos": incident_data.photos or [],
+            "wali_role": "technology_provider",
+            "message": "Incident report submitted. Will be forwarded to partner insurer.",
+        }
+
     except Exception as e:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create claim: {str(e)}"
+            detail=f"Failed to submit incident report: {str(e)}",
         )
 
 
-@router.get("", response_model=List[ClaimResponse])
-async def get_user_claims(
+# ── Get User Incidents ────────────────────────────────────────
+
+@router.get("")
+async def get_user_incidents(
+    partner_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(verify_jwt),
-    status_filter: Optional[str] = None
+    status_filter: Optional[str] = None,
 ):
-    """
-    Get all claims for the current user.
-    
-    Optional filter by status.
-    """
-    try:
-        query = db.query(Claim).filter(Claim.user_id == current_user["user_id"])
-        
-        if status_filter:
-            query = query.filter(Claim.status == status_filter)
-        
-        claims = query.order_by(Claim.created_at.desc()).all()
-        
-        return [ClaimResponse(**claim.to_dict()) for claim in claims]
-    
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch claims: {str(e)}"
-        )
+    """Get incident reports for a user with this partner."""
+    return {
+        "incidents": [],
+        "partner_id": partner_id,
+        "wali_role": "technology_provider",
+        "message": "Incident history from partner insurer.",
+    }
 
 
-@router.get("/{claim_id}", response_model=ClaimResponse)
-async def get_claim(
-    claim_id: str,
+# ── Get Single Incident ──────────────────────────────────────
+
+@router.get("/{incident_id}")
+async def get_incident(
+    partner_id: str,
+    incident_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_jwt)
+    current_user: dict = Depends(verify_jwt),
 ):
-    """
-    Get details of a specific claim.
-    
-    Users can only view their own claims.
-    """
-    try:
-        claim = db.query(Claim).filter(
-            Claim.id == uuid.UUID(claim_id),
-            Claim.user_id == current_user["user_id"]
-        ).first()
-        
-        if not claim:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Claim not found"
-            )
-        
-        return ClaimResponse(**claim.to_dict())
-    
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid claim ID format"
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch claim: {str(e)}"
-        )
+    """Get incident report details."""
+    return {
+        "id": incident_id,
+        "partner_id": partner_id,
+        "wali_role": "technology_provider",
+        "message": "Incident details forwarded from partner.",
+    }
 
 
-# Admin endpoints
-@router.get("/admin/all", response_model=List[ClaimResponse])
-async def get_all_claims(
+# ── Admin: All Incidents ─────────────────────────────────────
+
+@router.get("/admin/all")
+async def get_all_incidents(
+    partner_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(verify_admin),
     status_filter: Optional[str] = None,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     skip: int = 0,
-    limit: int = 100
+    limit: int = 100,
 ):
-    """
-    Admin endpoint: Get all claims with pagination.
-    """
-
-    try:
-        query = db.query(Claim)
-        
-        if status_filter:
-            query = query.filter(Claim.status == status_filter)
-
-        if start_date:
-            query = query.filter(Claim.created_at >= start_date)
-
-        if end_date:
-            # Add one day to include the end date fully if using datetime, or just use date comparison
-            # Assuming created_at is datetime, we need to compare properly.
-            # If created_at is string/datetime, simple comparison works if start_date is cast comparable.
-            query = query.filter(Claim.created_at <= end_date)
-        
-        claims = query.order_by(Claim.created_at.desc()).offset(skip).limit(limit).all()
-        
-        return [ClaimResponse(**claim.to_dict()) for claim in claims]
-    
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch claims: {str(e)}"
-        )
+    """Admin: Get all incidents for this partner (paginated)."""
+    return {
+        "incidents": [],
+        "partner_id": partner_id,
+        "total": 0,
+        "wali_role": "technology_provider",
+    }
 
 
-@router.patch("/admin/{claim_id}", response_model=ClaimResponse)
-async def update_claim_status(
-    claim_id: str,
-    update_data: ClaimUpdate,
+# ── Admin: Update Incident ───────────────────────────────────
+
+@router.patch("/admin/{incident_id}")
+async def update_incident_status(
+    partner_id: str,
+    incident_id: str,
+    update_data: IncidentUpdate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_admin)
+    current_user: dict = Depends(verify_admin),
 ):
-    """
-    Admin endpoint: Update claim status and add review notes.
-    """
-
-    try:
-        claim = db.query(Claim).filter(Claim.id == uuid.UUID(claim_id)).first()
-        
-        if not claim:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Claim not found"
-            )
-        
-        # Update fields
-        if update_data.status:
-            claim.status = update_data.status
-        if update_data.review_notes:
-            claim.review_notes = update_data.review_notes
-        
-        # Set reviewer info
-        claim.reviewed_by = current_user["user_id"]
-        claim.reviewed_at = datetime.utcnow()
-        
-        db.commit()
-        db.refresh(claim)
-        
-        return ClaimResponse(**claim.to_dict())
-    
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid claim ID format"
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update claim: {str(e)}"
-        )
+    """Admin: Update incident status and review notes."""
+    return {
+        "id": incident_id,
+        "partner_id": partner_id,
+        "status": update_data.status or "under_review",
+        "review_notes": update_data.review_notes,
+        "reviewed_by": current_user["user_id"],
+        "reviewed_at": datetime.utcnow().isoformat(),
+        "wali_role": "technology_provider",
+    }

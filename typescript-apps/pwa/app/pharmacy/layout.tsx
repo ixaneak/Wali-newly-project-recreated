@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import React from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, Stethoscope } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export default function PharmacyLayout({
     children,
@@ -11,62 +11,42 @@ export default function PharmacyLayout({
 }) {
     const router = useRouter();
     const pathname = usePathname();
-    const [mounted, setMounted] = React.useState(false);
+    const [loading, setLoading] = useState(true);
 
-    React.useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    const isLoginPage = mounted && pathname?.includes('/login');
-
-    const handleLogout = () => {
-        if (typeof window !== 'undefined') {
-            localStorage.removeItem('user_role');
-            router.push('/pharmacy/login');
+    useEffect(() => {
+        // Skip check for login page
+        if (pathname === '/pharmacy/login') {
+            setLoading(false);
+            return;
         }
-    };
 
-    return (
-        <div className="min-h-screen bg-slate-50">
-            {/* Top Navigation Bar */}
-            <nav className="bg-emerald-700 text-white shadow-md sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-16">
-                        {/* Logo */}
-                        <div className="flex items-center gap-2">
-                            <div className="bg-white/10 p-2 rounded-lg backdrop-blur-sm">
-                                <Stethoscope className="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h1 className="font-bold text-lg leading-none">Wali Pro</h1>
-                                <span className="text-[10px] text-emerald-200 uppercase tracking-widest font-semibold">Pharmacie</span>
-                            </div>
-                        </div>
+        const token = localStorage.getItem('pharmacy_token');
+        const role = localStorage.getItem('user_role');
 
-                        {/* Right Side Actions */}
-                        {!isLoginPage && (
-                            <div className="flex items-center gap-4">
-                                <div className="hidden md:block text-right">
-                                    <div className="text-sm font-medium">Pharmacie de la Paix</div>
-                                    <div className="text-xs text-emerald-200">ID: PH-002</div>
-                                </div>
-                                <button
-                                    onClick={handleLogout}
-                                    className="p-2 hover:bg-white/10 rounded-full transition"
-                                    title="Se déconnecter"
-                                >
-                                    <LogOut className="w-5 h-5" />
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </nav>
+        if (!token || role !== 'pharmacy') {
+            router.push('/pharmacy/login');
+            return;
+        }
 
-            {/* Main Content Area */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {children}
-            </main>
-        </div>
-    );
+        // Check subscription status
+        const subStatus = localStorage.getItem('subscription_status'); // 'trial', 'active', 'trial_ended', 'suspended'
+
+        // Block access if trial ended, unless on billing page
+        if ((subStatus === 'trial_ended' || subStatus === 'suspended') && pathname !== '/pharmacy/billing') {
+            router.push('/pharmacy/billing');
+            return;
+        }
+
+        setLoading(false);
+    }, [pathname, router]);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950">
+                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+            </div>
+        );
+    }
+
+    return <>{children}</>;
 }

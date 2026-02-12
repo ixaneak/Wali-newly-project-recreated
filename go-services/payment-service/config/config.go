@@ -36,10 +36,10 @@ type Config struct {
 	WaveSecretKey   string
 	WaveCheckoutURL string
 
-	// Compliance
-	EscrowBankAccount    string
-	OperatingBankAccount string
-	TechFeePercentage    int
+	// SaaS Platform Config
+	DefaultPartnerID         string // Default partner insurer (e.g. NSIA)
+	PartnerCollectionAccount string // Partner's payment collection account
+	IsSaaSPlatform           bool   // Always true — Wali is a software vendor
 
 	// Testing
 	MockPaymentProviders bool
@@ -74,10 +74,9 @@ func Load() *Config {
 		WaveSecretKey:   getEnv("WAVE_SECRET_KEY", ""),
 		WaveCheckoutURL: getEnv("WAVE_CHECKOUT_URL", "https://api.wave.com/v1/checkout/sessions"),
 
-		EscrowBankAccount:    getEnv("ESCROW_BANK_ACCOUNT", ""),
-		OperatingBankAccount: getEnv("OPERATING_BANK_ACCOUNT", ""),
-
-		TechFeePercentage: 2,
+		DefaultPartnerID:         getEnv("DEFAULT_PARTNER_ID", "NSIA"),
+		PartnerCollectionAccount: getEnv("PARTNER_COLLECTION_ACCOUNT", ""),
+		IsSaaSPlatform:           true, // Wali is always a SaaS platform
 
 		// Rate Limiting
 		RateLimitRequests: getEnvInt("RATE_LIMIT_REQUESTS", 100),

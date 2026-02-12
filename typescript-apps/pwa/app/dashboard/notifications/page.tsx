@@ -94,7 +94,7 @@ export default function NotificationSettingsPage() {
 
             <div className="p-6">
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                    Gérez vos préférences de communication. Les notifications de sécurité et relatives à vos sinistres ne peuvent pas être entièrement désactivées.
+                    Gérez vos préférences de communication. Les notifications de sécurité et relatives à vos incidents ne peuvent pas être entièrement désactivées.
                 </p>
 
                 <div className="space-y-4">

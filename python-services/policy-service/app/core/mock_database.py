@@ -108,7 +108,7 @@ def json_serial(obj):
 def load_db():
     import json
     import os
-    from app.models.policy import Policy, PolicyStatus, CoverageType, PaymentFrequency
+    from app.models.policy import Policy, PolicyStatus, ProductType, PaymentFrequency
     
     global MOCK_DATA_STORE
     
@@ -147,7 +147,7 @@ def load_db():
                          if item_data.get("status"):
                              item_data["status"] = PolicyStatus(item_data["status"])
                          if item_data.get("coverage_type"):
-                             item_data["coverage_type"] = CoverageType(item_data["coverage_type"])
+                             item_data["coverage_type"] = ProductType(item_data["coverage_type"])
                          if item_data.get("payment_frequency"):
                              item_data["payment_frequency"] = PaymentFrequency(item_data["payment_frequency"])
                          

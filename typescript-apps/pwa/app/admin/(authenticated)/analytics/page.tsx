@@ -139,7 +139,7 @@ export default function AdminAnalyticsPage() {
                             <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
                                 <Activity size={20} />
                             </div>
-                            <CardTitle className="text-xl font-black uppercase tracking-tight">Densité de Sinistres</CardTitle>
+                            <CardTitle className="text-xl font-black uppercase tracking-tight">Densité d'incidents</CardTitle>
                         </div>
                     </CardHeader>
                     <CardContent className="p-10 pt-0">

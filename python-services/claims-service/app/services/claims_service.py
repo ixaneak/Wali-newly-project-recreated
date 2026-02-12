@@ -1,10 +1,16 @@
-"""Claims service business logic."""
+"""
+Incident Report Service (was: ClaimsService)
+
+Manages incident reports filed by artisans and forwarded to partner insurers.
+Wali does NOT process insurance claims — we collect incident data and
+forward it to the partner insurer who handles decisions and payouts.
+"""
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional, List
 import logging
 
-from app.models.claim import Claim, ClaimStatus, CoverageType
+from app.models.claim import IncidentReport, IncidentStatus
 from app.core.storage import minio_client
 from app.validators.exif_validator import EXIFValidator
 from app.validators.fraud_detector import FraudDetector
@@ -12,107 +18,95 @@ from app.validators.fraud_detector import FraudDetector
 logger = logging.getLogger(__name__)
 
 
-class ClaimsService:
-    """Service for managing insurance claims."""
-    
+class IncidentReportService:
+    """
+    Service for managing incident reports.
+
+    IMPORTANT: Wali does NOT make claim decisions or process payouts.
+    We forward incident reports to the partner insurer who handles
+    all claim adjudication and customer payments.
+    """
+
     @staticmethod
-    def submit_claim(
+    def submit_incident(
         db: Session,
         user_id: str,
-        policy_id: str,
-        claim_type: CoverageType,
+        subscription_id: str,
+        partner_id: str,
+        incident_type: str,
         description: str,
-        claimed_amount: int,
-        images: List[tuple[bytes, str]]  # List of (image_data, filename)
-    ) -> Claim:
+        reported_amount: int,
+        images: List[tuple[bytes, str]],
+    ) -> IncidentReport:
         """
-        Submit a new insurance claim with images.
-        
+        Submit a new incident report for forwarding to partner insurer.
+
         Args:
             db: Database session
-            user_id: User UUID
-            policy_id: Policy UUID
-            claim_type: Type of claim
-            description: Claim description
-            claimed_amount: Amount claimed in XOF
-            images: List of image data tuples
-        
+            user_id: Artisan's user ID
+            subscription_id: Coverage subscription ID
+            partner_id: Partner insurer (e.g. "NSIA")
+            incident_type: Product ID from partner
+            description: Incident description
+            reported_amount: Amount reported by artisan
+            images: Evidence photos
+
         Returns:
-            Created Claim object
+            Created IncidentReport
         """
-        # Create claim record
-        claim = Claim(
+        incident = IncidentReport(
             user_id=user_id,
-            policy_id=policy_id,
-            claim_type=claim_type,
+            subscription_id=subscription_id,
+            partner_id=partner_id,
+            incident_type=incident_type,
             description=description,
-            claimed_amount=claimed_amount,
-            status=ClaimStatus.SUBMITTED
+            reported_amount=reported_amount,
+            status=IncidentStatus.SUBMITTED,
         )
-        
-        db.add(claim)
-        db.flush()  # Get claim ID
-        
-        claim_id = str(claim.id)
+
+        db.add(incident)
+        db.flush()  # Get ID
+
+        incident_id = str(incident.id)
         image_urls = []
         image_hashes = []
         exif_data_list = []
         fraud_matches_all = []
-        
-        # Process each image
+
         for image_data, filename in images:
-            # Validate EXIF metadata
+            # Validate EXIF
             exif_result = EXIFValidator.validate_image(image_data)
-            
             if not exif_result["valid"]:
-                logger.warning(f"EXIF validation failed for claim {claim_id}: {exif_result['errors']}")
-                # Store errors but don't reject automatically
-                exif_data_list.append({
-                    "filename": filename,
-                    "valid": False,
-                    "errors": exif_result["errors"]
-                })
+                logger.warning(f"EXIF validation failed for incident {incident_id}")
+                exif_data_list.append({"filename": filename, "valid": False, "errors": exif_result["errors"]})
             else:
-                exif_data_list.append({
-                    "filename": filename,
-                    "valid": True,
-                    "data": exif_result["exif_data"]
-                })
-            
-            # Calculate perceptual hash for fraud detection
+                exif_data_list.append({"filename": filename, "valid": True, "data": exif_result["exif_data"]})
+
+            # Fraud detection (tech service we provide)
             try:
                 phash = FraudDetector.calculate_phash(image_data)
                 image_hashes.append(phash)
-                
-                # Check for duplicate images
-                matches = FraudDetector.check_duplicate_images(
-                    db, phash, user_id, exclude_claim_id=claim_id
-                )
-                
+                matches = FraudDetector.check_duplicate_images(db, phash, user_id, exclude_claim_id=incident_id)
                 if matches:
                     fraud_matches_all.extend(matches)
-                    logger.warning(f"Found {len(matches)} similar images for claim {claim_id}")
-                
+                    logger.warning(f"Found {len(matches)} similar images for incident {incident_id}")
             except Exception as e:
-                logger.error(f"Fraud detection failed for image: {e}")
+                logger.error(f"Fraud detection failed: {e}")
                 image_hashes.append(None)
-            
+
             # Upload to MinIO
             file_extension = "." + filename.split(".")[-1] if "." in filename else ".jpg"
             try:
-                object_name = minio_client.upload_image(image_data, claim_id, file_extension)
-                
-                # Generate presigned URL (24h expiry)
+                object_name = minio_client.upload_image(image_data, incident_id, file_extension)
                 presigned_url = minio_client.get_presigned_url(object_name)
                 image_urls.append(presigned_url)
             except Exception as e:
                 logger.error(f"Image upload failed: {e}")
                 raise ValueError(f"Failed to upload image: {str(e)}")
-        
-        # Analyze fraud patterns
+
+        # Fraud analysis (technology service Wali provides)
         fraud_analysis = FraudDetector.detect_fraud_patterns(fraud_matches_all)
-        
-        # Calculate fraud score (0-100)
+
         fraud_score = 0
         if fraud_analysis["fraud_detected"]:
             if fraud_analysis["risk_level"] == "critical":
@@ -121,145 +115,166 @@ class ClaimsService:
                 fraud_score = 75
             elif fraud_analysis["risk_level"] == "medium":
                 fraud_score = 50
-        
-        # Update claim with processed data
-        claim.image_urls = image_urls
-        claim.image_hashes = [h for h in image_hashes if h is not None]
-        claim.exif_data = {"images": exif_data_list}
-        claim.fraud_score = fraud_score
-        claim.fraud_flags = fraud_analysis
-        
-        # Auto-flag for review if fraud detected
+
+        incident.image_urls = image_urls
+        incident.image_hashes = [h for h in image_hashes if h is not None]
+        incident.exif_data = {"images": exif_data_list}
+        incident.fraud_score = fraud_score
+        incident.fraud_flags = fraud_analysis
+
         if fraud_analysis["fraud_detected"]:
-            claim.status = ClaimStatus.UNDER_REVIEW
-            logger.warning(f"Claim {claim_id} flagged for fraud review: {fraud_analysis['patterns']}")
-        
+            incident.status = IncidentStatus.UNDER_REVIEW
+            logger.warning(f"Incident {incident_id} flagged for review: {fraud_analysis['patterns']}")
+
         db.commit()
-        db.refresh(claim)
-        
-        return claim
-    
+        db.refresh(incident)
+        return incident
+
     @staticmethod
-    def get_claim(db: Session, claim_id: str) -> Optional[Claim]:
-        """Get a single claim by ID."""
-        return db.query(Claim).filter(Claim.id == claim_id).first()
-    
+    def get_incident(db: Session, incident_id: str) -> Optional[IncidentReport]:
+        """Get a single incident report by ID."""
+        return db.query(IncidentReport).filter(IncidentReport.id == incident_id).first()
+
     @staticmethod
-    def get_user_claims(
-        db: Session, 
-        user_id: str, 
-        status: Optional[ClaimStatus] = None
-    ) -> List[Claim]:
-        """Get all claims for a user."""
-        query = db.query(Claim).filter(Claim.user_id == user_id)
-        
+    def get_user_incidents(
+        db: Session,
+        user_id: str,
+        status: Optional[IncidentStatus] = None,
+    ) -> List[IncidentReport]:
+        """Get all incident reports for an artisan."""
+        query = db.query(IncidentReport).filter(IncidentReport.user_id == user_id)
         if status:
-            query = query.filter(Claim.status == status)
-        
-        return query.order_by(Claim.created_at.desc()).all()
-    
+            query = query.filter(IncidentReport.status == status)
+        return query.order_by(IncidentReport.created_at.desc()).all()
+
     @staticmethod
-    def review_claim(
+    def review_incident(
         db: Session,
-        claim_id: str,
+        incident_id: str,
         reviewer_id: str,
-        approved: bool,
-        approved_amount: Optional[int] = None,
-        review_notes: Optional[str] = None
-    ) -> Claim:
-        """Admin review of a claim."""
-        claim = db.query(Claim).filter(Claim.id == claim_id).first()
-        if not claim:
-            raise ValueError("Claim not found")
-        
-        claim.reviewer_id = reviewer_id
-        claim.review_notes = review_notes
-        claim.reviewed_at = datetime.now()
-        
-        if approved:
-            claim.status = ClaimStatus.APPROVED
-            claim.approved_amount = approved_amount or claim.claimed_amount
+        forward_to_partner: bool,
+        partner_approved_amount: Optional[int] = None,
+        review_notes: Optional[str] = None,
+    ) -> IncidentReport:
+        """
+        Review incident report before forwarding to partner insurer.
+
+        If forward_to_partner=True, marks as ready for partner.
+        The partner makes the final claim decision.
+        """
+        incident = db.query(IncidentReport).filter(IncidentReport.id == incident_id).first()
+        if not incident:
+            raise ValueError("Incident report not found")
+
+        incident.reviewer_id = reviewer_id
+        incident.review_notes = review_notes
+        incident.reviewed_at = datetime.now()
+
+        if forward_to_partner:
+            incident.status = IncidentStatus.FORWARDED_TO_PARTNER
+            incident.forwarded_to_partner_at = datetime.now()
+            if partner_approved_amount:
+                incident.partner_approved_amount = partner_approved_amount
         else:
-            claim.status = ClaimStatus.REJECTED
-        
+            incident.status = IncidentStatus.PARTNER_REJECTED  # Wali pre-screen rejection
+
         db.commit()
-        db.refresh(claim)
-        
-        return claim
-    
+        db.refresh(incident)
+        return incident
+
     @staticmethod
-    def mark_claim_paid(
+    def forward_to_partner(
         db: Session,
-        claim_id: str,
-        transaction_id: str
-    ) -> Claim:
-        """Mark claim as paid after payout transaction."""
-        claim = db.query(Claim).filter(Claim.id == claim_id).first()
-        if not claim:
-            raise ValueError("Claim not found")
-        
-        claim.status = ClaimStatus.PAID
-        claim.payout_transaction_id = transaction_id
-        claim.payout_date = datetime.now()
-        
+        incident_id: str,
+        partner_reference: str,
+    ) -> IncidentReport:
+        """
+        Record that incident was forwarded to partner insurer.
+
+        The partner_reference is the partner's internal case number.
+        From here, the partner manages the claim process.
+        """
+        incident = db.query(IncidentReport).filter(IncidentReport.id == incident_id).first()
+        if not incident:
+            raise ValueError("Incident report not found")
+
+        incident.status = IncidentStatus.FORWARDED_TO_PARTNER
+        incident.partner_reference = partner_reference
+        incident.forwarded_to_partner_at = datetime.now()
+
         db.commit()
-        db.refresh(claim)
-        
-        return claim
-    
+        db.refresh(incident)
+
+        logger.info(
+            "Incident %s forwarded to partner %s (ref: %s). Wali role: technology_provider",
+            incident.incident_number, incident.partner_id, partner_reference,
+        )
+        return incident
+
     @staticmethod
-    def get_pending_claims(db: Session, limit: int = 100) -> List[Claim]:
-        """Get pending claims for admin review."""
-        return db.query(Claim).filter(
-            Claim.status.in_([ClaimStatus.SUBMITTED, ClaimStatus.UNDER_REVIEW])
+    def get_pending_incidents(db: Session, limit: int = 100) -> List[IncidentReport]:
+        """Get pending incident reports for review."""
+        return db.query(IncidentReport).filter(
+            IncidentReport.status.in_([IncidentStatus.SUBMITTED, IncidentStatus.UNDER_REVIEW])
         ).order_by(
-            Claim.fraud_score.desc(),  # High fraud scores first
-            Claim.created_at.asc()
+            IncidentReport.fraud_score.desc(),
+            IncidentReport.created_at.asc(),
         ).limit(limit).all()
 
     @staticmethod
-    def get_all_claims(
+    def get_all_incidents(
         db: Session,
-        status: Optional[ClaimStatus] = None,
+        partner_id: str = None,
+        status: Optional[IncidentStatus] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         skip: int = 0,
-        limit: int = 100
-    ) -> List[Claim]:
-        """Get all claims for admin review with filtering."""
-        query = db.query(Claim)
-        
+        limit: int = 100,
+    ) -> List[IncidentReport]:
+        """Get all incident reports with filtering."""
+        query = db.query(IncidentReport)
+        if partner_id:
+            query = query.filter(IncidentReport.partner_id == partner_id)
         if status:
-            query = query.filter(Claim.status == status)
-        
+            query = query.filter(IncidentReport.status == status)
         if start_date:
-            query = query.filter(Claim.created_at >= start_date)
-            
+            query = query.filter(IncidentReport.created_at >= start_date)
         if end_date:
-            query = query.filter(Claim.created_at <= end_date)
-            
-        return query.order_by(Claim.created_at.desc()).offset(skip).limit(limit).all()
+            query = query.filter(IncidentReport.created_at <= end_date)
+        return query.order_by(IncidentReport.created_at.desc()).offset(skip).limit(limit).all()
 
     @staticmethod
-    def get_admin_stats(db: Session) -> dict:
-        """Get claim counts by status for admin dashboard."""
+    def get_admin_stats(db: Session, partner_id: str = None) -> dict:
+        """Get incident report statistics for admin dashboard."""
         from sqlalchemy import func
-        stats = db.query(Claim.status, func.count(Claim.id)).group_by(Claim.status).all()
-        
+
+        query = db.query(IncidentReport)
+        if partner_id:
+            query = query.filter(IncidentReport.partner_id == partner_id)
+
+        stats = query.with_entities(
+            IncidentReport.status, func.count(IncidentReport.id)
+        ).group_by(IncidentReport.status).all()
+
         result = {
-            "total": db.query(Claim).count(),
+            "total": query.count(),
             "submitted": 0,
             "under_review": 0,
-            "approved": 0,
-            "rejected": 0,
-            "paid": 0
+            "forwarded_to_partner": 0,
+            "partner_approved": 0,
+            "partner_rejected": 0,
+            "partner_paid": 0,
+            "wali_role": "technology_provider",
         }
-        
+
         for status_val, count in stats:
-            if status_val in result:
-                result[status_val] = count
-                
-        # Calculate pending as sum of submitted and under_review
+            key = status_val.value if hasattr(status_val, "value") else str(status_val)
+            if key in result:
+                result[key] = count
+
         result["pending"] = result["submitted"] + result["under_review"]
-        
         return result
+
+
+# Backward-compatible alias
+ClaimsService = IncidentReportService

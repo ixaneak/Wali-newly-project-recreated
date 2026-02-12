@@ -55,7 +55,7 @@ export const CLAIM_TYPE_CONFIG = {
         icon: 'AlertTriangle',
         color: 'text-orange-600',
         bgColor: 'bg-orange-50 dark:bg-orange-900/20',
-        description: 'Accidents de la route, blessures'
+        description: 'Incidents corporels'
     },
     property: {
         label: 'Dommages matériels',
@@ -69,7 +69,7 @@ export const CLAIM_TYPE_CONFIG = {
         icon: 'FileText',
         color: 'text-gray-600',
         bgColor: 'bg-gray-50 dark:bg-gray-800',
-        description: 'Autres sinistres couverts'
+        description: 'Autres incidents couverts'
     }
 } as const;
 
@@ -81,27 +81,27 @@ export const CLAIM_STATUS_CONFIG = {
         bgColor: 'bg-gray-100 dark:bg-gray-800'
     },
     submitted: {
-        label: 'Soumis',
+        label: 'Transmis à NSIA', // More accurate for SaaS
         color: 'text-blue-600',
         bgColor: 'bg-blue-100 dark:bg-blue-900/30'
     },
     under_review: {
-        label: 'En cours',
+        label: 'En analyse chez NSIA',
         color: 'text-yellow-600',
         bgColor: 'bg-yellow-100 dark:bg-yellow-900/30'
     },
     approved: {
-        label: 'Approuvé',
+        label: 'Pris en charge',
         color: 'text-emerald-600',
         bgColor: 'bg-emerald-100 dark:bg-emerald-900/30'
     },
     rejected: {
-        label: 'Rejeté',
+        label: 'Non pris en charge', // Softer than "Rejeté"
         color: 'text-red-600',
         bgColor: 'bg-red-100 dark:bg-red-900/30'
     },
     paid: {
-        label: 'Payé',
+        label: 'Réréglé par NSIA',
         color: 'text-green-600',
         bgColor: 'bg-green-100 dark:bg-green-900/30'
     }

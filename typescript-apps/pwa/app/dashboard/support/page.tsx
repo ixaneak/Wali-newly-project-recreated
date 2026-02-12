@@ -11,7 +11,7 @@ interface FaqItem {
 
 const FAQS: FaqItem[] = [
     {
-        question: "Comment déclarer un sinistre ?",
+        question: "Comment signaler un incident ?",
         answer: "Allez dans l'onglet 'Mes Claims' et cliquez sur le bouton '+'. Suivez les étapes pour remplir les détails et ajouter des photos. Notre équipe examinera votre demande sous 24h."
     },
     {

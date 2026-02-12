@@ -5,26 +5,29 @@ import { useRouter } from 'next/navigation';
 import { Plus, Filter, Search, Loader2, RefreshCw } from 'lucide-react';
 import { ClaimStatus } from '@/types/claims';
 import { claimsService, ClaimData } from '@/lib/api-client';
+import { IncidentReport, IncidentStatus } from '@/types/app'; // New Import
 import ClaimCard from '@/components/claims/ClaimCard';
 import { toast } from 'sonner';
 
 export default function ClaimsPage() {
     const router = useRouter();
-    const [claims, setClaims] = useState<ClaimData[]>([]);
+    // Update state type to IncidentReport
+    const [claims, setClaims] = useState<IncidentReport[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [filterStatus, setFilterStatus] = useState<ClaimStatus | 'all'>('all');
+    // Map IncidentStatus to FilterStatus (loosely)
+    const [filterStatus, setFilterStatus] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Fetch claims from API
+    // Fetch incidents from API
     const fetchClaims = async (showLoader = true) => {
         try {
             if (showLoader) setLoading(true);
             const data = await claimsService.getUserClaims();
             setClaims(data);
         } catch (error: any) {
-            console.error('Error fetching claims:', error);
-            const errorMsg = error?.response?.data?.detail || 'Impossible de charger les claims';
+            console.error('Error fetching incidents:', error);
+            const errorMsg = error?.response?.data?.detail || 'Impossible de charger les incidents';
             toast.error(errorMsg);
             setClaims([]);
         } finally {
@@ -51,9 +54,12 @@ export default function ClaimsPage() {
         if (filterStatus === 'all') {
             matchesStatus = true;
         } else if (filterStatus === 'under_review') {
-            // "In progress" includes both submitted and under_review
-            matchesStatus = claim.status === 'submitted' || claim.status === 'under_review';
+            // Map SaaS statuses to "under review"
+            matchesStatus = ['submitted_to_wali', 'forwarded_to_partner', 'partner_reviewing'].includes(claim.status);
+        } else if (filterStatus === 'approved') {
+            matchesStatus = claim.status === 'partner_resolved'; // Assume resolved = approved for now
         } else {
+            // Exact match fallback
             matchesStatus = claim.status === filterStatus;
         }
 
@@ -64,13 +70,13 @@ export default function ClaimsPage() {
     // Count by status
     const statusCounts = {
         all: claims.length,
-        submitted: claims.filter(c => c.status === 'submitted').length,
-        under_review: claims.filter(c => c.status === 'submitted' || c.status === 'under_review').length, // Combined count
-        approved: claims.filter(c => c.status === 'approved').length,
-        paid: claims.filter(c => c.status === 'paid').length,
+        submitted: claims.filter(c => c.status === 'submitted_to_wali').length,
+        under_review: claims.filter(c => ['submitted_to_wali', 'forwarded_to_partner', 'partner_reviewing'].includes(c.status)).length,
+        approved: claims.filter(c => c.status === 'partner_resolved').length, // Mock mapping
+        paid: 0, // No paid status in IncidentReport yet, logic differs
     };
 
-    console.log('Claims array:', claims);
+    console.log('Incidents array:', claims);
     console.log('Status counts:', statusCounts);
 
     return (
@@ -79,7 +85,7 @@ export default function ClaimsPage() {
             <div className="p-6 pb-4 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800">
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Mes claims</h1>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Mes incidents</h1>
                         <button
                             onClick={handleRefresh}
                             disabled={refreshing}
@@ -103,7 +109,7 @@ export default function ClaimsPage() {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                         type="text"
-                        placeholder="Rechercher un claim..."
+                        placeholder="Rechercher un incident..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -123,15 +129,11 @@ export default function ClaimsPage() {
                         onClick={() => setFilterStatus('under_review')}
                     />
                     <FilterButton
-                        label={`Approuvés (${statusCounts.approved})`}
+                        label={`Pris en charge (${statusCounts.approved})`}
                         active={filterStatus === 'approved'}
                         onClick={() => setFilterStatus('approved')}
                     />
-                    <FilterButton
-                        label={`Payés (${statusCounts.paid})`}
-                        active={filterStatus === 'paid'}
-                        onClick={() => setFilterStatus('paid')}
-                    />
+                    {/* Temporarily remove "Payés" filter or map it to something else if needed */}
                 </div>
             </div>
 
@@ -158,10 +160,10 @@ export default function ClaimsPage() {
                             <Filter className="w-8 h-8 text-gray-400" />
                         </div>
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-                            Aucun claim trouvé
+                            Aucun incident trouvé
                         </h3>
                         <p className="text-gray-500 dark:text-gray-400 mb-6">
-                            {searchQuery ? 'Essayez une autre recherche' : 'Soumettez votre premier claim'}
+                            {searchQuery ? 'Essayez une autre recherche' : 'Signalez votre premier incident'}
                         </p>
                         {!searchQuery && (
                             <button
@@ -169,29 +171,35 @@ export default function ClaimsPage() {
                                 className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-medium transition"
                             >
                                 <Plus className="w-5 h-5" />
-                                Nouveau claim
+                                Signaler un incident
                             </button>
                         )}
                     </div>
                 ) : (
                     filteredClaims.map((claim) => {
-                        // Map API data to component's expected type
+                        // Map IncidentReport to component's expected Claim type
+                        // This adapter allows us to reuse ClaimCard without rewriting it
                         const mappedClaim = {
                             id: claim.id,
                             userId: claim.user_id,
-                            policyId: claim.policy_id,
-                            tier: 'classique', // Default tier, could be fetched from policy
-                            type: claim.claim_type as 'medical' | 'accident' | 'property' | 'other',
-                            status: claim.status as ClaimStatus,
-                            amount: claim.amount,
+                            policyId: claim.subscription_id,
+                            tier: claim.partner?.name || 'Partner',
+                            type: claim.type,
+                            // Map SaaS status to Legacy ClaimStatus for UI Badge
+                            status: (
+                                claim.status === 'partner_resolved' ? 'approved' :
+                                    claim.status === 'partner_reviewing' ? 'under_review' :
+                                        'submitted'
+                            ) as ClaimStatus,
+                            amount: claim.reported_amount,
                             description: claim.description,
                             incidentDate: new Date(claim.incident_date),
-                            photos: claim.photos,
+                            photos: claim.photos || [],
                             createdAt: new Date(claim.created_at),
-                            updatedAt: new Date(claim.updated_at),
-                            reviewNotes: claim.review_notes,
-                            reviewedBy: claim.reviewed_by,
-                            reviewedAt: claim.reviewed_at ? new Date(claim.reviewed_at) : undefined,
+                            updatedAt: new Date(claim.created_at), // fallback
+                            reviewNotes: claim.partner_notes,
+                            reviewedBy: claim.partner?.name,
+                            reviewedAt: claim.resolved_at ? new Date(claim.resolved_at) : undefined,
                         };
 
                         return (

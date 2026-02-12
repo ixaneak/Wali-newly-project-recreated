@@ -1,330 +1,301 @@
-"""Claims API routes."""
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+"""
+Incident Report Routes (was: claims.py)
+
+Manages incident reports filed by artisans and forwarded to partner insurers.
+Wali does NOT process claims or make payouts — we forward incident reports
+to the partner insurer who handles all decisions and payments.
+"""
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field
+import logging
 
 from app.core.database import get_db
-from app.models.claim import ClaimStatus, CoverageType
-from app.services.claims_service import ClaimsService
+from app.models.claim import IncidentStatus
+from app.services.claims_service import IncidentReportService
 from app.core.config import get_settings
 from app.core.security_middleware import verify_jwt, verify_admin
+from app.core.rate_limit import limiter
 
-router = APIRouter(prefix="/api/v1/claims", tags=["claims"])
+router = APIRouter(prefix="/api/v1/partners", tags=["incident-reports"])
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 # ==================== Pydantic Schemas ====================
 
-class ClaimReviewRequest(BaseModel):
-    """Request to review a claim."""
+class IncidentReviewRequest(BaseModel):
+    """Request to review an incident report before forwarding to partner."""
     reviewer_id: str
-    approved: bool
-    approved_amount: Optional[int] = None
+    forward_to_partner: bool  # was: approved
+    partner_approved_amount: Optional[int] = None
     review_notes: Optional[str] = None
 
 
-class ClaimPayoutRequest(BaseModel):
-    """Request to mark claim as paid."""
-    transaction_id: str
+class IncidentForwardRequest(BaseModel):
+    """Record that incident was forwarded to partner insurer."""
+    partner_reference: str  # Partner's case/claim number
 
 
-class ClaimCreateRequest(BaseModel):
-    """Request to submit a claim via JSON (with pre-uploaded photos)."""
+class IncidentCreateRequest(BaseModel):
+    """Request to file an incident report (JSON with pre-uploaded photos)."""
     user_id: str
-    policy_id: str
-    claim_type: CoverageType
+    subscription_id: str  # was: policy_id
+    partner_id: str = "NSIA"
+    incident_type: str  # Product ID from partner
     description: str
-    claimed_amount: int
+    reported_amount: int
     photos: List[str] = []
     incident_date: Optional[str] = None
 
 
-class ClaimResponse(BaseModel):
-    """Claim response."""
+class IncidentResponse(BaseModel):
+    """Incident report response."""
     id: str
     user_id: str
-    policy_id: str
-    claim_number: str
-    claim_type: str
+    subscription_id: str
+    partner_id: str
+    incident_number: str
+    incident_type: str
     description: str
-    claimed_amount: int
-    approved_amount: Optional[int]
-    image_urls: Optional[List[str]]
-    exif_data: Optional[dict]
+    reported_amount: int
+    partner_approved_amount: Optional[int] = None
+    image_urls: Optional[List[str]] = None
+    exif_data: Optional[dict] = None
     status: str
-    reviewer_id: Optional[str]
-    review_notes: Optional[str]
-    fraud_score: int
-    fraud_flags: Optional[dict]
-    created_at: str
-    updated_at: str
-    reviewed_at: Optional[str]
-    
+    reviewer_id: Optional[str] = None
+    review_notes: Optional[str] = None
+    fraud_score: int = 0
+    fraud_flags: Optional[dict] = None
+    partner_reference: Optional[str] = None
+    forwarded_to_partner_at: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    reviewed_at: Optional[str] = None
+
     class Config:
         from_attributes = True
 
 
 # ==================== Routes ====================
 
-@router.post("/", response_model=ClaimResponse, status_code=status.HTTP_201_CREATED)
-async def submit_claim(
+@router.post(
+    "/{partner_id}/incidents",
+    response_model=IncidentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+@limiter.limit("20/minute")
+async def submit_incident_report(
+    partner_id: str,
+    request: Request,
     user_id: str = Form(...),
-    policy_id: str = Form(...),
-    claim_type: CoverageType = Form(...),
+    subscription_id: str = Form(...),
+    incident_type: str = Form(...),
     description: str = Form(...),
-    claimed_amount: int = Form(..., gt=0),
+    reported_amount: int = Form(..., gt=0),
     images: List[UploadFile] = File(...),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_jwt)
+    current_user: dict = Depends(verify_jwt),
 ):
     """
-    Submit a new insurance claim with images.
-    
-    - **user_id**: UUID of the user
-    - **policy_id**: UUID of the policy
-    - **claim_type**: health, equipment, theft, or bundle
-    - **description**: Detailed description of the claim
-    - **claimed_amount**: Amount claimed in XOF
-    - **images**: Claim evidence photos (max 5MB each, .jpg/.png)
+    File an incident report for forwarding to partner insurer.
+
+    Wali collects the report and evidence, then forwards to
+    the partner insurer who makes all claim decisions.
     """
-    # Validate number of images
     if len(images) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="At least one image is required"
-        )
-    
+        raise HTTPException(status_code=400, detail="At least one image is required")
     if len(images) > 5:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Maximum 5 images allowed per claim"
-        )
-    
-    # Process images
+        raise HTTPException(status_code=400, detail="Maximum 5 images allowed")
+
     image_data_list = []
     for image_file in images:
-        # Validate file size
         contents = await image_file.read()
         size_mb = len(contents) / (1024 * 1024)
-        
         if size_mb > settings.max_image_size_mb:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Image {image_file.filename} exceeds max size of {settings.max_image_size_mb}MB"
-            )
-        
-        # Validate file extension
+            raise HTTPException(status_code=400, detail=f"Image exceeds {settings.max_image_size_mb}MB limit")
+
         filename = image_file.filename or "image.jpg"
         extension = "." + filename.split(".")[-1].lower() if "." in filename else ""
-        
         if extension not in settings.allowed_image_extensions:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid file type. Allowed: {settings.allowed_image_extensions}"
-            )
-        
+            raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {settings.allowed_image_extensions}")
+
         image_data_list.append((contents, filename))
-    
-    # Submit claim
+
     try:
-        claim = ClaimsService.submit_claim(
+        incident = IncidentReportService.submit_incident(
             db=db,
             user_id=user_id,
-            policy_id=policy_id,
-            claim_type=claim_type,
+            subscription_id=subscription_id,
+            partner_id=partner_id,
+            incident_type=incident_type,
             description=description,
-            claimed_amount=claimed_amount,
-            images=image_data_list
+            reported_amount=reported_amount,
+            images=image_data_list,
         )
-        return claim.to_dict()
+        return incident.to_dict()
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to submit claim: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to submit incident report: {str(e)}")
 
 
-@router.post("/submit-json", response_model=ClaimResponse, status_code=status.HTTP_201_CREATED)
-async def submit_claim_json(
-    request: ClaimCreateRequest,
+@router.post(
+    "/{partner_id}/incidents/submit-json",
+    response_model=IncidentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+@limiter.limit("20/minute")
+async def submit_incident_json(
+    partner_id: str,
+    request: Request,
+    incident_request: IncidentCreateRequest,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_jwt)
+    current_user: dict = Depends(verify_jwt),
 ):
     """
-    Submit a new insurance claim with pre-uploaded photo URLs.
+    Submit incident report via JSON with pre-uploaded photo URLs.
+    Photos should already be uploaded via the photos endpoint.
     """
     try:
-        from app.models.claim import Claim, ClaimStatus
+        from app.models.claim import IncidentReport, IncidentStatus
         import uuid
-        
-        # Ensure user and policy IDs are UUIDs
-        try:
-            u_id = uuid.UUID(request.user_id)
-            p_id = uuid.UUID(request.policy_id)
-        except ValueError:
-            # Fallback for testing if strings are provided or IDs are invalid
-            u_id = uuid.uuid4()
-            p_id = uuid.uuid4()
 
-        # Check if user exists in the shared database
-        from sqlalchemy import text
-        user_exists = db.execute(text("SELECT id FROM users WHERE id = :uid"), {"uid": str(u_id)}).first()
-        if not user_exists:
-            # Create a dummy user for testing if it doesn't exist
-            db.execute(text("INSERT INTO users (id, phone, kyc_status, role) VALUES (:uid, :phone, :kyc, :role) ON CONFLICT DO NOTHING"), 
-                       {"uid": str(u_id), "phone": "+22500000000", "kyc": "VERIFIED", "role": "ARTISAN"})
-        
-        # Check if policy exists
-        policy_exists = db.execute(text("SELECT id FROM policies WHERE id = :pid"), {"pid": str(p_id)}).first()
-        if not policy_exists:
-            # Create a dummy policy for testing
-            db.execute(text("INSERT INTO policies (id, user_id, coverage_type, status, policy_number, coverage_details, premium_amount, payment_frequency, start_date, end_date) VALUES (:pid, :uid, :type, :status, :pol_num, :details, :premium, :freq, :start, :end) ON CONFLICT DO NOTHING"),
-                       {"pid": str(p_id), "uid": str(u_id), "type": "HEALTH", "status": "ACTIVE", "pol_num": f"POL-{uuid.uuid4().hex[:8].upper()}", "details": "{}", "premium": 1000, "freq": "MONTHLY", "start": datetime.utcnow(), "end": datetime.utcnow()})
-
-        # Create claim record
-        claim = Claim(
+        incident = IncidentReport(
             id=uuid.uuid4(),
-            user_id=u_id,
-            policy_id=p_id,
-            claim_type=request.claim_type,
-            description=request.description,
-            claimed_amount=request.claimed_amount,
-            image_urls=request.photos,
-            status=ClaimStatus.SUBMITTED,
-            claim_number=f"CLM-{uuid.uuid4().hex[:8].upper()}"
+            user_id=incident_request.user_id,
+            subscription_id=uuid.UUID(incident_request.subscription_id),
+            partner_id=partner_id,
+            incident_type=incident_request.incident_type,
+            description=incident_request.description,
+            reported_amount=incident_request.reported_amount,
+            image_urls=incident_request.photos,
+            status=IncidentStatus.SUBMITTED,
+            incident_number=f"INC-{uuid.uuid4().hex[:8].upper()}",
         )
-        
-        db.add(claim)
+
+        db.add(incident)
         db.commit()
-        db.refresh(claim)
-        
-        return claim.to_dict()
+        db.refresh(incident)
+
+        return incident.to_dict()
     except Exception as e:
         db.rollback()
-        import traceback
-        with open("debug_error.log", "a") as f:
-            f.write(f"\n--- Error at {datetime.now()} ---\n")
-            f.write(traceback.format_exc())
-        logger.error(f"Failed to submit claim via JSON: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to submit claim via JSON: {str(e)}"
-        )
+        logger.error(f"Failed to submit incident report: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to submit incident report: {str(e)}")
 
 
-@router.get("/{claim_id}", response_model=ClaimResponse)
-def get_claim(
-    claim_id: str,
+@router.get("/{partner_id}/incidents/{incident_id}", response_model=IncidentResponse)
+def get_incident(
+    partner_id: str,
+    incident_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_jwt)
+    current_user: dict = Depends(verify_jwt),
 ):
-    """Get a specific claim by ID."""
-    claim = ClaimsService.get_claim(db, claim_id)
-    if not claim:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Claim not found"
-        )
-    return claim.to_dict()
+    """Get a specific incident report."""
+    incident = IncidentReportService.get_incident(db, incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident report not found")
+    return incident.to_dict()
 
 
-@router.get("/user/{user_id}", response_model=List[ClaimResponse])
-def get_user_claims(
+@router.get("/{partner_id}/incidents/user/{user_id}", response_model=List[IncidentResponse])
+def get_user_incidents(
+    partner_id: str,
     user_id: str,
-    status_filter: Optional[ClaimStatus] = None,
+    status_filter: Optional[IncidentStatus] = None,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_jwt)
+    current_user: dict = Depends(verify_jwt),
 ):
-    """Get all claims for a user, optionally filtered by status."""
-    claims = ClaimsService.get_user_claims(db, user_id, status_filter)
-    return [c.to_dict() for c in claims]
+    """Get all incident reports for an artisan."""
+    incidents = IncidentReportService.get_user_incidents(db, user_id, status_filter)
+    return [i.to_dict() for i in incidents]
 
 
-@router.post("/{claim_id}/review", response_model=ClaimResponse)
-def review_claim(
-    claim_id: str,
-    request: ClaimReviewRequest,
+@router.post("/{partner_id}/incidents/{incident_id}/review", response_model=IncidentResponse)
+def review_incident(
+    partner_id: str,
+    incident_id: str,
+    request: IncidentReviewRequest,
     db: Session = Depends(get_db),
-    admin_user: dict = Depends(verify_admin)
+    admin_user: dict = Depends(verify_admin),
 ):
     """
-    Review a claim (admin only).
-    
-    - **approved**: true to approve, false to reject
-    - **approved_amount**: Optional approved amount (defaults to claimed amount)
-    - **review_notes**: Optional notes for the review
+    Review incident report before forwarding to partner insurer.
+
+    If forward_to_partner=True, the incident is forwarded to the
+    partner insurer who makes the final claim decision.
     """
     try:
-        claim = ClaimsService.review_claim(
+        incident = IncidentReportService.review_incident(
             db=db,
-            claim_id=claim_id,
+            incident_id=incident_id,
             reviewer_id=request.reviewer_id,
-            approved=request.approved,
-            approved_amount=request.approved_amount,
-            review_notes=request.review_notes
+            forward_to_partner=request.forward_to_partner,
+            partner_approved_amount=request.partner_approved_amount,
+            review_notes=request.review_notes,
         )
-        return claim.to_dict()
+        return incident.to_dict()
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.post("/{claim_id}/payout", response_model=ClaimResponse)
-def mark_claim_paid(
-    claim_id: str,
-    request: ClaimPayoutRequest,
+@router.post("/{partner_id}/incidents/{incident_id}/forward", response_model=IncidentResponse)
+def forward_to_partner(
+    partner_id: str,
+    incident_id: str,
+    request: IncidentForwardRequest,
     db: Session = Depends(get_db),
-    admin_user: dict = Depends(verify_admin)
+    admin_user: dict = Depends(verify_admin),
 ):
-    """Mark claim as paid after payout transaction completes."""
+    """
+    Record that this incident was forwarded to the partner insurer.
+
+    The partner_reference is the claim/case number assigned by the
+    partner insurer to track the incident on their side.
+    """
     try:
-        claim = ClaimsService.mark_claim_paid(
+        incident = IncidentReportService.forward_to_partner(
             db=db,
-            claim_id=claim_id,
-            transaction_id=request.transaction_id
+            incident_id=incident_id,
+            partner_reference=request.partner_reference,
         )
-        return claim.to_dict()
+        return incident.to_dict()
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.get("/admin/all", response_model=List[ClaimResponse])
-def get_all_claims(
-    status_filter: Optional[ClaimStatus] = None,
+@router.get("/{partner_id}/incidents", response_model=List[IncidentResponse])
+def list_partner_incidents(
+    partner_id: str,
+    status_filter: Optional[IncidentStatus] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    admin_user: dict = Depends(verify_admin)
+    admin_user: dict = Depends(verify_admin),
 ):
-    """Get all claims for admin review with filtering (admin only)."""
-    claims = ClaimsService.get_all_claims(
-        db=db, 
-        status=status_filter, 
-        start_date=start_date, 
-        end_date=end_date, 
-        skip=skip, 
-        limit=limit
+    """List all incident reports for a partner (admin only)."""
+    incidents = IncidentReportService.get_all_incidents(
+        db=db,
+        partner_id=partner_id,
+        status=status_filter,
+        start_date=start_date,
+        end_date=end_date,
+        skip=skip,
+        limit=limit,
     )
-    return [c.to_dict() for c in claims]
+    return [i.to_dict() for i in incidents]
 
-@router.get("/admin/stats")
-def get_admin_stats(
+
+@router.get("/{partner_id}/incidents/admin/stats")
+def get_incident_stats(
+    partner_id: str,
     db: Session = Depends(get_db),
-    admin_user: dict = Depends(verify_admin)
+    admin_user: dict = Depends(verify_admin),
 ):
-    """Get claim statistics for admin dashboard."""
-    return ClaimsService.get_admin_stats(db)
+    """Get incident report statistics for admin dashboard."""
+    return IncidentReportService.get_admin_stats(db, partner_id)

@@ -25,10 +25,14 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
         f"Traceback:\n{traceback.format_exc()}"
     )
     
-    # Generic response - no internal details exposed
+    # Generic response - showing detail for debug as requested
     return JSONResponse(
         status_code=500,
-        content={"error": "Internal server error", "detail": "Request could not be processed"}
+        content={
+            "error": "Internal server error", 
+            "detail": str(exc),
+            "traceback": traceback.format_exc()
+        }
     )
 
 
@@ -47,7 +51,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
     if exc.status_code in safe_codes:
         return JSONResponse(
             status_code=exc.status_code,
-            content={"error": exc.detail}
+            content={"error": exc.detail, "detail": exc.detail}
         )
     
     # For other codes (5xx), return generic message

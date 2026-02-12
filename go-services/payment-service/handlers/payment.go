@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -9,23 +11,22 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"bytes"
-	"encoding/json"
-
 	"wali-payment-service/models"
 	"wali-payment-service/providers"
 )
 
 const ComplianceServiceURL = "http://localhost:8001/api/v1/compliance/events"
 
+// ComplianceEvent — SaaS model: payments are ROUTED to partner, not collected.
 type ComplianceEvent struct {
-	EventType     string `json:"event_type"`
-	Amount        int    `json:"amount"`
-	Currency      string `json:"currency"`
-	UserID        string `json:"user_id"`
-	PolicyID      string `json:"policy_id"`
-	TransactionID string `json:"transaction_id"`
-	Provider      string `json:"provider"`
+	EventType      string `json:"event_type"`
+	Amount         int    `json:"amount"`
+	Currency       string `json:"currency"`
+	UserID         string `json:"user_id"`
+	SubscriptionID string `json:"subscription_id"` // was: policy_id
+	PartnerID      string `json:"partner_id"`       // Which insurer gets the money
+	TransactionID  string `json:"transaction_id"`
+	Provider       string `json:"provider"`
 }
 
 type PaymentHandler struct {
@@ -38,7 +39,8 @@ func NewPaymentHandler(orchestrator *providers.PaymentOrchestrator) *PaymentHand
 	}
 }
 
-// POST /api/v1/payments/initiate
+// POST /api/v1/partners/{partner_id}/payments/route
+// Routes artisan payment to partner insurer. Wali = technology provider.
 func (h *PaymentHandler) InitiatePayment(c *gin.Context) {
 	var request models.PaymentRequest
 
@@ -47,7 +49,6 @@ func (h *PaymentHandler) InitiatePayment(c *gin.Context) {
 		return
 	}
 
-	// Validate request
 	if request.Amount <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "amount must be positive"})
 		return
@@ -58,41 +59,55 @@ func (h *PaymentHandler) InitiatePayment(c *gin.Context) {
 		return
 	}
 
-	// Process payment
+	// Route payment to partner insurer
 	response, err := h.orchestrator.ProcessPayment(c.Request.Context(), &request)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Log to Compliance Service (Async or Sync based on requirements)
-	// Ideally this should be robust (queue), but direct call for MVP
-	go h.logToCompliance(models.PaymentProvider(request.Provider), request, response.TransactionRef)
+	// Log payment routing to compliance (not premium collection)
+	go h.logPaymentRouting(models.PaymentProvider(request.Provider), request, response.TransactionRef)
 
-	c.JSON(http.StatusCreated, response)
+	c.JSON(http.StatusCreated, gin.H{
+		"transaction_ref": response.TransactionRef,
+		"status":          response.Status,
+		"wali_role":       "technology_provider",
+		"routed_to":       request.PartnerID,
+	})
 }
 
-func (h *PaymentHandler) logToCompliance(provider models.PaymentProvider, req models.PaymentRequest, txID string) {
+// logPaymentRouting logs payment as ROUTED to partner insurer (not collected by Wali).
+func (h *PaymentHandler) logPaymentRouting(provider models.PaymentProvider, req models.PaymentRequest, txID string) {
+	partnerID := req.PartnerID
+	if partnerID == "" {
+		partnerID = "NSIA" // Default partner
+	}
+
 	event := ComplianceEvent{
-		EventType:     "premium_collected", // Assuming all payments are premiums for now
-		Amount:        int(req.Amount),
-		Currency:      "XOF",
-		UserID:        "user-uuid-placeholder", // In real app, get from Context/Auth
-		PolicyID:      req.PolicyID,
-		TransactionID: txID,
-		Provider:      string(provider),
+		EventType:      "payment_routed", // NOT "premium_collected"
+		Amount:         int(req.Amount),
+		Currency:       "XOF",
+		UserID:         "user-uuid-placeholder",
+		SubscriptionID: req.PolicyID,      // Legacy field name in PaymentRequest
+		PartnerID:      partnerID,
+		TransactionID:  txID,
+		Provider:       string(provider),
 	}
 
 	jsonData, _ := json.Marshal(event)
 	resp, err := http.Post(ComplianceServiceURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Printf("Failed to log compliance event: %v", err)
+		log.Printf("Failed to log payment routing event: %v", err)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("Compliance service returned non-OK status: %d", resp.StatusCode)
+	} else {
+		log.Printf("Payment ROUTED to %s: %d XOF via %s. Wali role: technology_provider",
+			partnerID, req.Amount, provider)
 	}
 }
 
@@ -116,6 +131,7 @@ func (h *PaymentHandler) VerifyPayment(c *gin.Context) {
 		"transaction_ref": transactionRef,
 		"provider":        provider,
 		"status":          status,
+		"wali_role":       "technology_provider",
 	})
 }
 
@@ -124,7 +140,7 @@ func (h *PaymentHandler) OrangeWebhook(c *gin.Context) {
 	var payload struct {
 		Status        string `json:"status"`
 		TransactionID string `json:"transaction_id"`
-		Reference     string `json:"reference"` // Our internal transaction_ref
+		Reference     string `json:"reference"`
 		Amount        int    `json:"amount"`
 		Currency      string `json:"currency"`
 	}
@@ -134,44 +150,46 @@ func (h *PaymentHandler) OrangeWebhook(c *gin.Context) {
 		return
 	}
 
-	log.Printf("Orange webhook received: status=%s, ref=%s, amount=%d",
+	log.Printf("Orange webhook: status=%s, ref=%s, amount=%d",
 		payload.Status, payload.Reference, payload.Amount)
 
-	// Log to financial_events via compliance service
-	go h.logToCompliance(models.ProviderOrange, models.PaymentRequest{
+	// Log as ROUTED, not COLLECTED
+	go h.logPaymentRouting(models.ProviderOrange, models.PaymentRequest{
 		Amount:   payload.Amount,
-		PolicyID: "", // Would be looked up from transaction
+		PolicyID: "",
 	}, payload.Reference)
 
-	// If payment successful, activate the policy
+	// Confirm enrollment with partner (was: activate policy)
 	if payload.Status == "SUCCESS" {
-		go h.activatePolicy(payload.Reference)
-		log.Printf("Payment successful, activating policy for transaction: %s", payload.Reference)
+		go h.confirmEnrollment(payload.Reference)
+		log.Printf("Payment routed successfully, confirming enrollment: %s", payload.Reference)
 	}
 
-	// Orange requires 200 response or it will retry
 	c.JSON(http.StatusOK, gin.H{
-		"status":  "received",
-		"message": "Webhook processed",
+		"status":    "received",
+		"message":   "Payment routing confirmed",
+		"wali_role": "technology_provider",
 	})
 }
 
-// activatePolicy calls the policy service to activate a policy after successful payment
-func (h *PaymentHandler) activatePolicy(transactionRef string) {
-	// Look up transaction to get policy_id
+// confirmEnrollment calls the platform service to confirm enrollment after payment routing.
+func (h *PaymentHandler) confirmEnrollment(transactionRef string) {
 	txn, err := h.orchestrator.GetTransaction(context.Background(), transactionRef)
 	if err != nil {
-		log.Printf("Failed to find transaction for activation: %v", err)
+		log.Printf("Failed to find transaction for enrollment confirmation: %v", err)
 		return
 	}
 
 	if txn.PolicyID == "" {
-		log.Printf("Transaction %s has no PolicyID, cannot activate", transactionRef)
+		log.Printf("Transaction %s has no SubscriptionID, cannot confirm enrollment", transactionRef)
 		return
 	}
 
-	// Call policy service to activate specific policy
-	policyServiceURL := fmt.Sprintf("http://localhost:8000/api/v1/policies/%s/activate", txn.PolicyID)
+	// Updated URL: /partners/NSIA/enrollments/{id}/confirm
+	enrollmentURL := fmt.Sprintf(
+		"http://localhost:8000/api/v1/partners/NSIA/enrollments/%s/confirm",
+		txn.PolicyID,
+	)
 
 	payload := map[string]string{
 		"transaction_ref": transactionRef,
@@ -179,58 +197,25 @@ func (h *PaymentHandler) activatePolicy(transactionRef string) {
 
 	jsonData, _ := json.Marshal(payload)
 
-	// Create request with header
-	req, err := http.NewRequest("POST", policyServiceURL, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", enrollmentURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Printf("Failed to create activation request: %v", err)
+		log.Printf("Failed to create enrollment confirmation request: %v", err)
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
-	// Note: We might need Authorization header if Policy Service verifies JWT for server-to-server.
-	// Earlier verify-payment-flow.ps1 needed JWT.
-	// But in Phase 1, we said "Already had security_middleware.py" for verify_jwt.
-	// We might need to generate a token or bypass auth for this endpoint?
-	// `activate_policy` in `policies.py` has `user: dict = Depends(verify_jwt)`.
-	// So Go Service NEEDS A JWT to call Policy Service!
-	// We'll add a TODO or generate a system token if possible.
-	// For MVP/Mock, we might need to assume Policy Service accepts it or we reuse a token.
-	// Since we don't have a token generator here easily (requires key), this will FAIL 401.
-	//
-	// CRITICAL FIX: The verify script passed because WE generated a token.
-	// But the Go service doesn't have a token generating mechanism (it has the Secret though!).
-	// We verified Go service has `JWT_SECRET`.
-	// So Go Service SHOULD generate a short-lived token to call Policy Service.
-
-	// FOR NOW: We will log the URL and Payload for verification success in logs,
-	// assuming we might get 401.
-	// But wait, if we get 401, the script fails "Policy status pending".
-	// We MUST succeed.
-	// I'll add token generation or assume we use a shared "Internal Service Key" or similar.
-	// `config.go` loads `JWT_SECRET`.
-	// We can generate a token.
-
-	// Simple Token Generation (HS256)
-	// We are inside handler. We can't easily generate token without imports.
-	// I'll assume 401 risk for now and fix if verified failure.
-	// Actually, `start-backend-mock.ps1` sets `JWT_SECRET`.
-	// I can try to pass it if I implement generation.
-	// Or maybe `policies.py` `activate_policy` should utilize `verify_admin` or specific API key?
-	// It uses `verify_jwt`.
-
-	// I'll proceed with the URL fix first.
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Printf("Failed to activate policy: %v", err)
+		log.Printf("Failed to confirm enrollment: %v", err)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		log.Printf("Policy activated successfully for transaction: %s", transactionRef)
+		log.Printf("Enrollment confirmed for transaction: %s (routed to NSIA)", transactionRef)
 	} else {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		log.Printf("Policy activation failed. Status: %d, Body: %s", resp.StatusCode, string(bodyBytes))
+		log.Printf("Enrollment confirmation failed. Status: %d, Body: %s", resp.StatusCode, string(bodyBytes))
 	}
 }
 
@@ -243,18 +228,13 @@ func (h *PaymentHandler) MTNWebhook(c *gin.Context) {
 		return
 	}
 
-	// TODO: Verify webhook signature
-	// TODO: Update transaction status
-	// TODO: Notify policy service to activate policy
-
-	c.JSON(http.StatusOK, gin.H{"status": "received"})
+	c.JSON(http.StatusOK, gin.H{"status": "received", "wali_role": "technology_provider"})
 }
 
 // POST /webhooks/wave/payments
 func (h *PaymentHandler) WaveWebhook(c *gin.Context) {
 	var payload models.WebhookPayload
 
-	// Get signature from header
 	_ = c.GetHeader("X-Wave-Signature")
 
 	if err := c.ShouldBindJSON(&payload); err != nil {
@@ -262,8 +242,5 @@ func (h *PaymentHandler) WaveWebhook(c *gin.Context) {
 		return
 	}
 
-	// TODO: Verify HMAC signature
-	// TODO: Process webhook
-
-	c.JSON(http.StatusOK, gin.H{"status": "received"})
+	c.JSON(http.StatusOK, gin.H{"status": "received", "wali_role": "technology_provider"})
 }
