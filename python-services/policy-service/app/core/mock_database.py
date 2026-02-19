@@ -89,6 +89,9 @@ class MockQuery:
     def first(self):
         return self.items[0] if self.items else None
 
+    def count(self):
+        return len(self.items)
+
 
 # Serialization Helpers
 def json_serial(obj):

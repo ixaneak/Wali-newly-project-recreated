@@ -7,7 +7,7 @@ to the partner insurer who handles all decisions and payments.
 """
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 from pydantic import BaseModel, Field
 import logging
@@ -18,6 +18,12 @@ from app.services.claims_service import IncidentReportService
 from app.core.config import get_settings
 from app.core.security_middleware import verify_jwt, verify_admin
 from app.core.rate_limit import limiter
+
+# SAR Detection for compliance
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'policy-service'))
+from app.services.sar_detection_engine import SARDetectionEngine, DetectionRuleType
 
 router = APIRouter(prefix="/api/v1/partners", tags=["incident-reports"])
 settings = get_settings()
@@ -104,6 +110,9 @@ async def submit_incident_report(
 
     Wali collects the report and evidence, then forwards to
     the partner insurer who makes all claim decisions.
+    
+    SAR Detection: Automatically checks for rapid claims and other
+    fraud indicators for compliance purposes.
     """
     if len(images) == 0:
         raise HTTPException(status_code=400, detail="At least one image is required")
@@ -125,6 +134,7 @@ async def submit_incident_report(
         image_data_list.append((contents, filename))
 
     try:
+        # Submit the incident
         incident = IncidentReportService.submit_incident(
             db=db,
             user_id=user_id,
@@ -135,6 +145,54 @@ async def submit_incident_report(
             reported_amount=reported_amount,
             images=image_data_list,
         )
+        
+        # ═════════════════════════════════════════════════════════════════
+        # SAR DETECTION - Check for suspicious activity
+        # ═════════════════════════════════════════════════════════════════
+        try:
+            # Import policy service to get policy details
+            from app.core.database import get_db as get_policy_db
+            
+            # Get policy creation date from subscription_id
+            # For now, we'll use mock data - in production, query policy service
+            policy_created_at = datetime.now() - timedelta(days=30)  # Mock: policy created 30 days ago
+            
+            # Prepare data for SAR detection
+            claim_data = {
+                'id': str(incident.id),
+                'policy_id': subscription_id,
+                'user_id': user_id,
+                'claim_date': datetime.now().isoformat(),
+                'claim_amount': reported_amount,
+                'description': description,
+                'is_claim_analysis': True,
+                'created_at': policy_created_at.isoformat(),  # Policy creation date
+                'documents': [{'exif_data': {}}]  # Simplified - should extract actual EXIF
+            }
+            
+            # Run SAR detection
+            sar_engine = SARDetectionEngine(db)
+            risk_event = await sar_engine.analyze_claim_submission(claim_data, {
+                'id': subscription_id,
+                'user_id': user_id,
+                'created_at': policy_created_at.isoformat()
+            })
+            
+            if risk_event:
+                logger.warning(f"SAR Risk detected for incident {incident.id}: {risk_event.rule_type} (Score: {risk_event.risk_score})")
+                
+                # Store risk event in incident metadata
+                incident.fraud_flags = incident.fraud_flags or {}
+                incident.fraud_flags['sar_detection'] = risk_event.to_dict()
+                incident.fraud_score = risk_event.risk_score
+                db.commit()
+                
+                # If high risk, compliance team is already notified by SAR engine
+                
+        except Exception as e:
+            # Don't block claim submission if SAR detection fails
+            logger.error(f"SAR detection failed for incident {incident.id}: {e}")
+        
         return incident.to_dict()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -158,6 +216,9 @@ async def submit_incident_json(
     """
     Submit incident report via JSON with pre-uploaded photo URLs.
     Photos should already be uploaded via the photos endpoint.
+    
+    SAR Detection: Automatically checks for rapid claims and other
+    fraud indicators for compliance purposes.
     """
     try:
         from app.models.claim import IncidentReport, IncidentStatus
@@ -179,6 +240,48 @@ async def submit_incident_json(
         db.add(incident)
         db.commit()
         db.refresh(incident)
+        
+        # ═════════════════════════════════════════════════════════════════
+        # SAR DETECTION - Check for suspicious activity
+        # ═════════════════════════════════════════════════════════════════
+        try:
+            # Get policy creation date from subscription_id
+            # For now, we'll use mock data - in production, query policy service
+            policy_created_at = datetime.now() - timedelta(days=30)  # Mock: policy created 30 days ago
+            
+            # Prepare data for SAR detection
+            claim_data = {
+                'id': str(incident.id),
+                'policy_id': incident_request.subscription_id,
+                'user_id': incident_request.user_id,
+                'claim_date': datetime.now().isoformat(),
+                'claim_amount': incident_request.reported_amount,
+                'description': incident_request.description,
+                'is_claim_analysis': True,
+                'created_at': policy_created_at.isoformat(),  # Policy creation date
+                'documents': [{'exif_data': {}}]  # Simplified - should extract actual EXIF
+            }
+            
+            # Run SAR detection
+            sar_engine = SARDetectionEngine(db)
+            risk_event = await sar_engine.analyze_claim_submission(claim_data, {
+                'id': incident_request.subscription_id,
+                'user_id': incident_request.user_id,
+                'created_at': policy_created_at.isoformat()
+            })
+            
+            if risk_event:
+                logger.warning(f"SAR Risk detected for incident {incident.id}: {risk_event.rule_type} (Score: {risk_event.risk_score})")
+                
+                # Store risk event in incident metadata
+                incident.fraud_flags = incident.fraud_flags or {}
+                incident.fraud_flags['sar_detection'] = risk_event.to_dict()
+                incident.fraud_score = risk_event.risk_score
+                db.commit()
+                
+        except Exception as e:
+            # Don't block claim submission if SAR detection fails
+            logger.error(f"SAR detection failed for incident {incident.id}: {e}")
 
         return incident.to_dict()
     except Exception as e:

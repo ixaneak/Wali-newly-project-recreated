@@ -17,7 +17,7 @@ import {
     UserCircle
 } from 'lucide-react';
 import {
-    policyService,
+    userService,
     UserData
 } from '@/lib/api-client';
 import AdminHeader from '@/components/admin/AdminHeader';
@@ -28,19 +28,47 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
+// Mock data for development fallback
+const MOCK_USERS: UserData[] = [
+    { id: "USR-001", phone: "+225 07 12 34 56 78", name: "Kouassi Jean", kyc_status: "verified", role: "artisan", region: "Abidjan", created_at: "2024-01-15T10:30:00Z" },
+    { id: "USR-002", phone: "+225 05 98 76 54 32", name: "Yao Marie", kyc_status: "pending", role: "artisan", region: "Bouaké", created_at: "2024-02-20T14:15:00Z" },
+    { id: "USR-003", phone: "+225 01 23 45 67 89", name: "Koné Amadou", kyc_status: "verified", role: "artisan", region: "Yamoussoukro", created_at: "2024-01-10T09:00:00Z" },
+    { id: "USR-004", phone: "+225 07 45 67 89 01", name: "Bamba Aïcha", kyc_status: "rejected", role: "artisan", region: "San-Pédro", created_at: "2024-03-05T16:45:00Z" },
+    { id: "USR-005", phone: "+225 05 11 22 33 44", name: "Diallo Moussa", kyc_status: "verified", role: "artisan", region: "Abidjan", created_at: "2024-02-01T11:20:00Z" },
+    { id: "USR-006", phone: "+225 07 99 88 77 66", name: "Koffi Grace", kyc_status: "pending", role: "artisan", region: "Daloa", created_at: "2024-03-10T08:30:00Z" },
+    { id: "USR-007", phone: "+225 01 55 44 33 22", name: "Ouattara Kofi", kyc_status: "verified", role: "artisan", region: "Bouaké", created_at: "2024-01-25T13:00:00Z" },
+    { id: "USR-008", phone: "+225 05 66 77 88 99", name: "Touré Fatou", kyc_status: "verified", role: "artisan", region: "Abidjan", created_at: "2024-02-15T10:00:00Z" },
+];
+
 export default function AdminUsersPage() {
     const [users, setUsers] = useState<UserData[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState('ALL');
+    const [usingMockData, setUsingMockData] = useState(false);
 
     const fetchUsers = async () => {
         try {
             setLoading(true);
-            const { items } = await policyService.getAdminUsers();
-            setUsers(items || []);
+            setUsingMockData(false);
+            const { items } = await userService.getAdminUsers(1, 50, searchQuery);
+            
+            if (items && items.length > 0) {
+                setUsers(items);
+                if (usingMockData) {
+                    toast.success("Données en temps réel chargées");
+                }
+            } else {
+                // Fallback to mock data for development
+                console.log("No users from API, using mock data");
+                setUsers(MOCK_USERS);
+                setUsingMockData(true);
+            }
         } catch (e) {
-            console.error("User registry sync failed");
+            console.error("User registry sync failed:", e);
+            toast.error("Erreur de connexion au serveur. Données de démonstration affichées.");
+            setUsers(MOCK_USERS);
+            setUsingMockData(true);
         } finally {
             setLoading(false);
         }
@@ -50,12 +78,72 @@ export default function AdminUsersPage() {
         fetchUsers();
     }, []);
 
+    // Re-fetch when search query changes (with debounce)
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (searchQuery) {
+                fetchUsers();
+            }
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
     const filteredUsers = (users || []).filter(u => {
         const matchesSearch = (u?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (u?.id || '').toLowerCase().includes(searchQuery.toLowerCase());
+            (u?.id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (u?.phone || '').includes(searchQuery);
         const matchesFilter = filter === 'ALL' || u?.kyc_status?.toUpperCase() === filter;
         return matchesSearch && matchesFilter;
     });
+
+    const getKycBadgeVariant = (status?: string) => {
+        switch (status?.toLowerCase()) {
+            case 'verified': return 'success';
+            case 'rejected': return 'error';
+            case 'pending': return 'warning';
+            default: return 'default';
+        }
+    };
+
+    const getKycLabel = (status?: string) => {
+        switch (status?.toLowerCase()) {
+            case 'verified': return 'VÉRIFIÉ';
+            case 'rejected': return 'REJETÉ';
+            case 'pending': return 'EN ATTENTE';
+            default: return status?.toUpperCase() || 'INCONNU';
+        }
+    };
+
+    const exportUsers = () => {
+        const csv = [
+            ['ID', 'Nom', 'Téléphone', 'Région', 'Statut KYC', 'Date création'].join(','),
+            ...filteredUsers.map(u => [
+                u.id,
+                `"${u.name || ''}"`,
+                u.phone,
+                u.region || 'Abidjan',
+                u.kyc_status,
+                new Date(u.created_at).toLocaleDateString('fr-FR')
+            ].join(','))
+        ].join('\n');
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `artisans-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        toast.success(`${filteredUsers.length} artisans exportés`);
+    };
+
+    const stats = [
+        { label: 'Total Artisans', count: users.length, icon: UsersIcon, color: 'sky' as const },
+        { label: 'Vérifiés (NUI)', count: users.filter(u => u.kyc_status === 'verified').length, icon: UserCheck, color: 'emerald' as const },
+        { label: 'En attente', count: users.filter(u => u.kyc_status === 'pending').length, icon: AlertCircle, color: 'amber' as const },
+        { label: 'Rejetés', count: users.filter(u => u.kyc_status === 'rejected').length, icon: XCircle, color: 'rose' as const },
+    ];
 
     return (
         <div className="space-y-10 min-h-screen bg-slate-950 pb-20">
@@ -64,14 +152,19 @@ export default function AdminUsersPage() {
                 description="Gestion des identités et vérification KYC COSUMAF"
             />
 
+            {/* Mock Data Warning */}
+            {usingMockData && (
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-500" />
+                    <p className="text-amber-400 text-sm">
+                        Mode démonstration : Données simulées affichées. La connexion au serveur a échoué.
+                    </p>
+                </div>
+            )}
+
             {/* Verification Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {[
-                    { label: 'Total Artisans', count: users.length || 1250, icon: UsersIcon, color: 'sky' },
-                    { label: 'Vérifiés (NUI)', count: users.filter(u => u.kyc_status === 'verified').length || 890, icon: UserCheck, color: 'emerald' },
-                    { label: 'En attente', count: users.filter(u => u.kyc_status === 'pending').length || 45, icon: AlertCircle, color: 'amber' },
-                    { label: 'Rejetés', count: users.filter(u => u.kyc_status === 'rejected').length || 12, icon: XCircle, color: 'rose' },
-                ].map((stat, i) => (
+                {stats.map((stat, i) => (
                     <Card key={i} className="border-slate-800 bg-slate-900/40">
                         <CardContent className="p-6 flex items-center gap-4">
                             <div className={cn(
@@ -103,7 +196,7 @@ export default function AdminUsersPage() {
                                     filter === f ? "bg-cyan-500 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"
                                 )}
                             >
-                                {f}
+                                {f === 'ALL' ? 'TOUS' : f === 'VERIFIED' ? 'VÉRIFIÉS' : f === 'PENDING' ? 'EN ATTENTE' : 'REJETÉS'}
                             </button>
                         ))}
                     </div>
@@ -174,8 +267,8 @@ export default function AdminUsersPage() {
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant={user?.kyc_status === 'verified' ? 'success' : user?.kyc_status === 'rejected' ? 'error' : 'warning'}>
-                                            {user?.kyc_status?.toUpperCase()}
+                                        <Badge variant={getKycBadgeVariant(user?.kyc_status)}>
+                                            {getKycLabel(user?.kyc_status)}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right pr-8">
@@ -191,7 +284,11 @@ export default function AdminUsersPage() {
             </Card>
 
             <div className="fixed bottom-10 right-10 flex gap-4 animate-in slide-in-from-bottom-10">
-                <Button variant="outline" className="bg-slate-950/80 backdrop-blur-xl border-slate-800 h-14 px-8 font-black uppercase tracking-widest text-[10px] text-slate-400">
+                <Button 
+                    variant="outline" 
+                    className="bg-slate-950/80 backdrop-blur-xl border-slate-800 h-14 px-8 font-black uppercase tracking-widest text-[10px] text-slate-400"
+                    onClick={exportUsers}
+                >
                     <Download size={16} className="mr-2" /> EXPORTER REGISTRE
                 </Button>
             </div>

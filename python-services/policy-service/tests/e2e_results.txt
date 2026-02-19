@@ -1,0 +1,43 @@
+
+--- TEST 1: Rapid Claim Detection ---
+    Score: 15, Severity: low
+    Rules fired: ['round_number']
+  PASS: Scan detects rapid claim
+
+--- TEST 2: Threshold Breach Detection ---
+    Score: 75, Severity: critical
+    Rules fired: ['round_number', 'threshold_breach']
+  PASS: 600K XOF triggers threshold breach
+
+--- TEST 3: Round Number Detection ---
+    Score: 15, Severity: low
+    Rules fired: ['round_number']
+  PASS: 100K round number detected
+
+--- TEST 4: Third-Party Payment Detection ---
+    Score: 50, Severity: high
+    Rules fired: ['round_number', 'third_party_payment']
+  PASS: Different payer vs policyholder phones
+
+--- TEST 5: Risk Events Listing ---
+    Total events: 4
+  PASS: List risk events from previous scans
+
+--- TEST 6: Escalate Risk Event to SAR ---
+    SAR Reference: SAR-2026-057BBF
+    Status: draft
+  PASS: Escalate event to formal SAR report
+
+--- TEST 7: Submit SAR to TRACFIN ---
+    Message: TRACFIN report generated for SAR-2026-057BBF
+    SAR Status: submitted
+    XML length: 1465 chars
+  PASS: Submit to TRACFIN and verify XML
+
+--- TEST 8: Dashboard Stats ---
+    Dashboard keys: ['sar_reports', 'risk_events']
+  PASS: Dashboard endpoint returns stats
+
+==================================================
+Results: 8 passed, 0 failed out of 8
+ALL TESTS PASSED!

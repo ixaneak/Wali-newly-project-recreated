@@ -48,10 +48,26 @@ class CoverageSubscription(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+    # QR Code System
+    qr_token = Column(String, unique=True, index=True)
+    qr_expires_at = Column(DateTime(timezone=True))
+    verification_hash = Column(String)
+
     __table_args__ = (
         CheckConstraint('partner_quoted_amount > 0', name='positive_quoted_amount'),
         CheckConstraint('end_date IS NULL OR end_date > start_date', name='valid_dates_check'),
     )
+
+    def generate_qr_token(self):
+        """Generate a secure, unique QR token."""
+        import secrets
+        from datetime import datetime, timedelta
+        
+        # Simple secure token. In prod, maybe signed JWT.
+        self.qr_token = secrets.token_urlsafe(32)
+        # Expires in 1 year for now, or tied to policy end_date
+        self.qr_expires_at = self.end_date if self.end_date else datetime.utcnow() + timedelta(days=365)
+        return self.qr_token
 
 Policy = CoverageSubscription
 PolicyStatus = SubscriptionStatus
@@ -70,4 +86,7 @@ class User(Base):
     kyc_status = Column(Enum(KYCStatus), default=KYCStatus.PENDING)
     avatar_url = Column(String(255))
     region = Column(String(100))
+    email = Column(String(255), unique=True, nullable=True)
+    password_hash = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+

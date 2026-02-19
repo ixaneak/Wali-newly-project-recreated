@@ -16,7 +16,8 @@ from pydantic import BaseModel, Field
 import uuid
 
 from app.core.database import get_db
-from app.core.security_middleware import verify_jwt, verify_admin
+from app.core.security_middleware_v2 import verify_jwt, verify_admin
+from app.models.policy import SubscriptionStatus
 # from app.models.policy import CoverageSubscription, SubscriptionStatus
 
 router = APIRouter(prefix="/api/v1/partners/{partner_id}/incidents", tags=["incidents"])

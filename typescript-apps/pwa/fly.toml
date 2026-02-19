@@ -22,8 +22,8 @@ primary_region = 'cdg'
   processes = ['app']
 
 [[vm]]
-  size = 'shared-cpu-1x'
-  memory = '256mb'
+  size = 'shared-cpu-2x'
+  memory = '1gb'
   cpu_kind = 'shared'
-  cpus = 1
-  memory_mb = 256
+  cpus = 2
+  memory_mb = 1024

@@ -57,7 +57,8 @@ export default function DocumentsPage() {
             if (userId) {
                 const { policyService } = await import('@/lib/api-client');
                 const response = await policyService.getUserPolicies(userId);
-                const policies = response.data; // axios response
+                // api-client already returns res.data
+                const policies = Array.isArray(response) ? response : (response as any).data || [];
 
                 const policyDocs: Document[] = policies.map((p: any) => ({
                     id: p.id,

@@ -11,7 +11,7 @@ import uuid
 import os
 from dotenv import load_dotenv
 
-from app.core.security_middleware import verify_jwt
+from app.core.security_middleware_v2 import verify_jwt
 
 load_dotenv()
 

@@ -1,9 +1,10 @@
 "use client";
 
 import React from 'react';
-import { Search, Bell, LogOut } from 'lucide-react';
+import { Search, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import NotificationsDropdown from './NotificationsDropdown';
 
 interface AdminHeaderProps {
     title: string;
@@ -19,7 +20,7 @@ export default function AdminHeader({ title, description, counts, searchQuery, o
     const handleLogout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        toast.success("Déconnecté");
+        toast.success("Deconnecte");
         router.push('/admin');
     };
 
@@ -42,14 +43,7 @@ export default function AdminHeader({ title, description, counts, searchQuery, o
                     />
                 </div>
 
-                <button className="relative p-3 bg-[#111827] border border-slate-700/50 rounded-xl text-slate-400 hover:text-[#0ea5e9] hover:border-[#0ea5e9]/30 transition-all group">
-                    <Bell size={20} />
-                    {counts && counts.issues > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-lg ring-4 ring-[#0f172a] animate-bounce">
-                            {counts.issues}
-                        </span>
-                    )}
-                </button>
+                <NotificationsDropdown />
 
                 <div className="flex items-center gap-4 pl-6 border-l border-slate-800">
                     <div className="text-right hidden sm:block">

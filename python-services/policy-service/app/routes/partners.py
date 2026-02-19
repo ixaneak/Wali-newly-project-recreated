@@ -15,7 +15,8 @@ from pydantic import BaseModel
 import logging
 
 from app.core.database import get_db
-from app.core.security_middleware import verify_admin
+from app.core.security_middleware_v2 import verify_jwt, verify_admin
+
 from app.services.saas_billing_service import SaaSBillingService
 from app.models.partner import (
     Partner, PartnerInvoice, PartnerInvoiceStatus,

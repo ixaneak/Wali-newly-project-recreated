@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     """Application configuration settings."""
     
     # Database
-    database_url: str = "postgresql://wali_user:password@localhost:5432/wali"
+    database_url: str = "sqlite:///./wali.db"
     database_replica_url: str | None = None
     use_mock_db: bool = False
     

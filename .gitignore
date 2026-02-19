@@ -78,3 +78,6 @@ temp/
 mock_db.json
 claims_mock_db.json
 e2e_state.json
+
+# Logs folder
+logs/

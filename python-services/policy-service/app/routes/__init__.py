@@ -1,1 +1,1 @@
-# Empty __init__.py
+print("DEBUG: Importing app.routes package")

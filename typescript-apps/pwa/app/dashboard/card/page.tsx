@@ -1,28 +1,53 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
-import { ArrowLeft, ShieldCheck, Copy, Share2, Info } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Copy, Share2, Info, Loader2 } from 'lucide-react';
 import { useDashboard } from '@/hooks/useMobileData';
+import { apiService } from '@/lib/api-client';
 import { toast } from 'sonner';
+import { getAuth } from 'firebase/auth';
 
 export default function DigitalCardPage() {
     const router = useRouter();
     const { data } = useDashboard();
     const [flipped, setFlipped] = useState(false);
+    const [qrToken, setQrToken] = useState<string | null>(null);
+    const [loadingQr, setLoadingQr] = useState(true);
+
+    useEffect(() => {
+        const fetchPolicy = async () => {
+            try {
+                const auth = getAuth();
+                const user = auth.currentUser;
+                if (!user) return;
+
+                // Fetch real enrollments
+                const policies = await apiService.getUserPolicies(user.uid);
+                // Find active policy
+                const activePolicy = policies.find((p: any) => p.status === 'active' || p.status === 'trial');
+
+                if (activePolicy && activePolicy.qr_token) {
+                    setQrToken(activePolicy.qr_token);
+                } else if (activePolicy) {
+                    // Fallback if no token (shouldn't happen with new backend)
+                    setQrToken(activePolicy.subscription_number);
+                }
+            } catch (e) {
+                console.error("Failed to fetch policy for QR", e);
+                // toast.error("Impossible de charger le code QR");
+            } finally {
+                setLoadingQr(false);
+            }
+        };
+        fetchPolicy();
+    }, []);
 
     if (!data) return null;
 
-    // Generate QR Data: userId:policyId:timestamp
-    const qrData = JSON.stringify({
-        uid: data.user.id,
-        pol: "POL-2024-001", // Should come from API
-        exp: "2026-12-31"
-    });
-
     const handleCopyId = () => {
-        navigator.clipboard.writeText("8745-9201-4458");
+        navigator.clipboard.writeText(qrToken || "Unavailable");
         toast.success("ID copié !");
     };
 
@@ -82,8 +107,14 @@ export default function DigitalCardPage() {
                                 <p className="text-gray-500 text-xs">Présentez ce code en pharmacie</p>
                             </div>
 
-                            <div className="bg-white p-2 rounded-xl border-2 border-gray-100 mb-2">
-                                <QRCodeSVG value={qrData} size={150} />
+                            <div className="bg-white p-2 rounded-xl border-2 border-gray-100 mb-2 min-h-[166px] flex items-center justify-center">
+                                {loadingQr ? (
+                                    <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                                ) : qrToken ? (
+                                    <QRCodeSVG value={qrToken} size={150} />
+                                ) : (
+                                    <p className="text-xs text-gray-400">Aucune police active</p>
+                                )}
                             </div>
 
                             <p className="text-[10px] text-gray-400 mt-2 font-mono">

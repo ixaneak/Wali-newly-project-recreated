@@ -1,3 +1,4 @@
+print("DEBUG: Executing app/routes/policies.py module")
 """
 Enrollment API Routes (was: policies.py)
 
@@ -14,9 +15,10 @@ from pydantic import BaseModel, Field
 import logging
 
 from app.core.database import get_db
-from app.core.security_middleware import verify_jwt, verify_admin
+from app.core.security_middleware_v2 import verify_jwt, verify_admin
 from app.models.policy import SubscriptionStatus, PaymentFrequency
 from app.services.policy_service import EnrollmentService
+from app.services import sar_service
 from app.core.rate_limit import limiter
 
 router = APIRouter(prefix="/api/v1/partners", tags=["enrollments"])
@@ -68,6 +70,9 @@ class EnrollmentResponse(BaseModel):
     end_date: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+    
+    # QR Feature
+    qr_token: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -136,6 +141,46 @@ def create_enrollment(
             payment_frequency=enrollment_request.payment_frequency,
             is_test=enrollment_request.is_test,
         )
+
+        # ── SAR Detection (non-blocking) ────────────────────────
+        # Run risk scoring on every new enrollment. Never block
+        # legitimate users — alert compliance team for critical hits.
+        try:
+            amount = getattr(subscription, 'partner_quoted_amount', 0) or 0
+            result = sar_service.score_transaction(
+                db=db,
+                user_id=enrollment_request.user_id,
+                amount=amount,
+                policy_id=getattr(subscription, 'id', None),
+            )
+
+            if result["rules_fired"] > 0:
+                risk_event = sar_service.create_risk_event(
+                    db=db,
+                    event_type="policy_creation",
+                    severity=result["severity"],
+                    risk_score=result["risk_score"],
+                    triggered_rules=result["triggered_rules"],
+                    user_id=enrollment_request.user_id,
+                    policy_id=getattr(subscription, 'id', None),
+                    raw_data={
+                        "amount": amount,
+                        "partner_id": partner_id,
+                        "product_id": enrollment_request.partner_product_id,
+                    },
+                )
+                if result["severity"] == "critical":
+                    logger.critical(
+                        f"🚨 SAR ALERT: Critical risk on enrollment "
+                        f"{getattr(subscription, 'id', '?')} — "
+                        f"score={result['risk_score']}, "
+                        f"rules={[r.get('rule') for r in result['triggered_rules']]}"
+                    )
+        except Exception as sar_err:
+            # Never let SAR analysis break the enrollment flow
+            logger.error(f"SAR analysis failed (non-blocking): {sar_err}")
+        # ── End SAR Detection ───────────────────────────────────
+
         return subscription
     except ValueError as e:
         raise HTTPException(
@@ -271,6 +316,20 @@ def get_enrollment_certificate(
         content=bytes(pdf_bytes),
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f"attachment; filename=enrollment_{sub.subscription_number}.pdf"
         },
     )
+
+# ==================== User Policy Routes (Legacy/Convenience) ====================
+
+print("DEBUG: Defining policies_router")
+policies_router = APIRouter(prefix="/api/v1/policies", tags=["policies"])
+
+@policies_router.get("/my-policies", response_model=List[EnrollmentResponse])
+def get_my_policies(
+    db: Session = Depends(get_db),
+    user: dict = Depends(verify_jwt),
+):
+    """Get all policies for the current logged-in user."""
+    user_id = user["user_id"]
+    subs = EnrollmentService.get_user_enrollments(db, user_id)
+    return [s.to_dict() for s in subs]

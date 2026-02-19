@@ -11,7 +11,7 @@ from typing import Optional
 import logging
 
 from app.core.database import get_db
-from app.core.security_middleware import verify_jwt
+from app.core.security_middleware_v2 import verify_jwt
 from app.services.paydunya_service import (
     create_paydunya_invoice,
     process_paydunya_webhook,

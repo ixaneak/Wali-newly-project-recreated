@@ -16,7 +16,7 @@ Progressive Web App for Wali micro-insurance platform.
 - TypeScript
 - TailwindCSS
 - Axios (API client)
-
+5
 ## Setup
 
 1. Install dependencies:
@@ -49,5 +49,25 @@ Make sure all 5 backend services are running:
 
 - `/login` - Phone OTP authentication
 - `/dashboard` - Artisan dashboard
-- `/admin` - Admin panel (TODO)
+- `/admin` - Admin panel
 - `/pharmacy` - Pharmacy dashboard (TODO)
+
+## Testing
+
+We use **Playwright** for End-to-End (E2E) testing.
+
+1.  **Run all tests (Headless)**:
+    ```bash
+    npm run test:e2e
+    ```
+
+2.  **Run tests with UI (Visual Mode)**:
+    ```bash
+    npx playwright test --ui
+    ```
+
+3.  **View HTML Report**:
+    ```bash
+    npx playwright show-report
+    ```
+

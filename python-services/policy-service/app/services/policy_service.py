@@ -135,6 +135,9 @@ class EnrollmentService:
             next_payment_date=next_payment_date,
             end_date=end_date,
         )
+        
+        # Generate QR Token
+        subscription.generate_qr_token()
 
         try:
             db.add(subscription)

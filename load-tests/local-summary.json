@@ -1,0 +1,284 @@
+{
+    "root_group": {
+        "checks": {},
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {
+                "Health Check": {
+                    "name": "Health Check",
+                    "path": "::Health Check",
+                    "id": "167c726a79efe9afd2c220eb9d49c1a2",
+                    "groups": {},
+                    "checks": {
+                            "health 200": {
+                                "path": "::Health Check::health 200",
+                                "id": "8ea40c34476e1685aaa0431bbdf0f748",
+                                "passes": 9,
+                                "fails": 195,
+                                "name": "health 200"
+                            },
+                            "health < 200ms": {
+                                "fails": 0,
+                                "name": "health < 200ms",
+                                "path": "::Health Check::health < 200ms",
+                                "id": "ad067ebe02699b6931a5a4eb990cb177",
+                                "passes": 204
+                            }
+                        }
+                },
+                "SAR Scan": {
+                    "name": "SAR Scan",
+                    "path": "::SAR Scan",
+                    "id": "6d1fead9d9d3622067d52e46bc58d78b",
+                    "groups": {},
+                    "checks": {
+                            "scan 200": {
+                                "path": "::SAR Scan::scan 200",
+                                "id": "e389878b90f5b94dbefa86d6dcc6635a",
+                                "passes": 20,
+                                "fails": 184,
+                                "name": "scan 200"
+                            }
+                        }
+                },
+                "Risk Events": {
+                    "path": "::Risk Events",
+                    "id": "f7b03bf8312f2add5f98d3f52bd3fd4c",
+                    "groups": {},
+                    "checks": {
+                            "events 200": {
+                                "name": "events 200",
+                                "path": "::Risk Events::events 200",
+                                "id": "77644f38639dc172e3cd156229df8357",
+                                "passes": 20,
+                                "fails": 184
+                            }
+                        },
+                    "name": "Risk Events"
+                },
+                "SAR Dashboard": {
+                    "groups": {},
+                    "checks": {
+                            "dashboard 200": {
+                                "name": "dashboard 200",
+                                "path": "::SAR Dashboard::dashboard 200",
+                                "id": "3774e29224cd6eeec68d0437a0062a49",
+                                "passes": 20,
+                                "fails": 184
+                            }
+                        },
+                    "name": "SAR Dashboard",
+                    "path": "::SAR Dashboard",
+                    "id": "6c93090c83f19d411c0585a46f6504ce"
+                },
+                "SAR Reports": {
+                    "name": "SAR Reports",
+                    "path": "::SAR Reports",
+                    "id": "7963ca04df1df662bf62b47bad7065c0",
+                    "groups": {},
+                    "checks": {
+                            "reports 200": {
+                                "name": "reports 200",
+                                "path": "::SAR Reports::reports 200",
+                                "id": "ea5b0632974bd6cb97884fadd5ad6df0",
+                                "passes": 20,
+                                "fails": 184
+                            }
+                        }
+                },
+                "Enrollment": {
+                    "name": "Enrollment",
+                    "path": "::Enrollment",
+                    "id": "02844c533011b601533056a6947f066d",
+                    "groups": {},
+                    "checks": {
+                            "enrollment not 500": {
+                                "name": "enrollment not 500",
+                                "path": "::Enrollment::enrollment not 500",
+                                "id": "6bc95c88ba84efe458291ac5e593dae8",
+                                "passes": 204,
+                                "fails": 0
+                            }
+                        }
+                }
+            }
+    },
+    "metrics": {
+        "sar_scan_time": {
+            "p(95)": 28.9973,
+            "avg": 5.256425,
+            "min": 0,
+            "med": 1.53645,
+            "max": 56.084,
+            "p(90)": 8.989560000000033,
+            "thresholds": {
+                "p(95)<500": false
+            }
+        },
+        "http_reqs": {
+            "count": 1225,
+            "rate": 38.94031346685322
+        },
+        "vus_max": {
+            "value": 10,
+            "min": 10,
+            "max": 10
+        },
+        "health_check_time": {
+            "p(90)": 6.616570000000005,
+            "p(95)": 9.583104999999996,
+            "avg": 2.993814215686275,
+            "min": 0.5087,
+            "med": 2.0575,
+            "max": 15.0705,
+            "thresholds": {
+                "p(95)<200": false
+            }
+        },
+        "http_req_duration": {
+            "p(95)": 12.070039999999992,
+            "avg": 3.327730448979595,
+            "min": 0,
+            "med": 1.6098,
+            "max": 56.084,
+            "p(90)": 6.755800000000002,
+            "thresholds": {
+                "p(95)<1000": false
+            }
+        },
+        "http_req_receiving": {
+            "p(95)": 1.2825199999999999,
+            "avg": 0.3636026938775512,
+            "min": 0,
+            "med": 0,
+            "max": 6.5411,
+            "p(90)": 1.0058
+        },
+        "http_req_duration{expected_response:true}": {
+            "avg": 17.35429444444444,
+            "min": 1.5173,
+            "med": 13.3631,
+            "max": 56.084,
+            "p(90)": 35.661530000000006,
+            "p(95)": 54.51695
+        },
+        "vus": {
+            "value": 3,
+            "min": 3,
+            "max": 10
+        },
+        "checks": {
+            "passes": 497,
+            "fails": 931,
+            "value": 0.3480392156862745
+        },
+        "sar_dashboard_time": {
+            "avg": 2.4995725490196063,
+            "min": 0,
+            "med": 1.09225,
+            "max": 17.3848,
+            "p(90)": 5.885970000000012,
+            "p(95)": 9.76441999999999,
+            "thresholds": {
+                "p(95)<300": false
+            }
+        },
+        "group_duration": {
+            "med": 1.6749999999999998,
+            "max": 56.084,
+            "p(90)": 6.806560000000001,
+            "p(95)": 12.134484999999996,
+            "avg": 3.383976062091506,
+            "min": 0
+        },
+        "http_req_connecting": {
+            "avg": 0.002296897959183673,
+            "min": 0,
+            "med": 0,
+            "max": 0.5719,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "http_req_blocked": {
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.0051677551020408155,
+            "min": 0,
+            "med": 0,
+            "max": 0.7165
+        },
+        "http_req_tls_handshaking": {
+            "min": 0,
+            "med": 0,
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0
+        },
+        "errors": {
+            "passes": 747,
+            "fails": 69,
+            "value": 0.9154411764705882
+        },
+        "iteration_duration": {
+            "p(90)": 2019.9889,
+            "p(95)": 2030.295765,
+            "avg": 1505.9794357843143,
+            "min": 1004.9069,
+            "med": 1122.9395,
+            "max": 2122.8113
+        },
+        "http_req_failed": {
+            "fails": 90,
+            "passes": 1135,
+            "thresholds": {
+                "rate<0.15": true
+            },
+            "value": 0.926530612244898
+        },
+        "http_req_waiting": {
+            "avg": 2.957324653061231,
+            "min": 0,
+            "med": 1.5111,
+            "max": 55.528,
+            "p(90)": 6.093540000000001,
+            "p(95)": 10.680339999999994
+        },
+        "data_received": {
+            "count": 809599,
+            "rate": 25735.541912204815
+        },
+        "risk_event_time": {
+            "avg": 3.170640196078429,
+            "min": 0,
+            "med": 1.1332,
+            "max": 31.7556,
+            "p(90)": 6.162410000000019,
+            "p(95)": 17.812524999999997
+        },
+        "http_req_sending": {
+            "avg": 0.006803102040816327,
+            "min": 0,
+            "med": 0,
+            "max": 1.5557,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "iterations": {
+            "count": 204,
+            "rate": 6.484754242643311
+        },
+        "data_sent": {
+            "count": 398397,
+            "rate": 12664.248215717485
+        },
+        "sar_detections": {
+            "count": 15,
+            "rate": 0.4768201649002435
+        }
+    },
+    "setup_data": {
+        "startTime": 1771441923400
+    }
+}

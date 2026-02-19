@@ -1,16 +1,16 @@
 import './globals.css'
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from 'sonner'
+import { LanguageProvider } from '@/components/LanguageProvider';
 
 export const metadata = {
     title: {
         template: '%s | Wali',
-        default: 'Wali - Micro-assurance pour les Artisans de Côte d\'Ivoire',
+        default: "Wali - Micro-assurance pour les Artisans de Cote d'Ivoire",
     },
-    description: 'La première micro-assurance 100% digitale pour les artisans ivoiriens. Assurance santé, protection équipement et couverture contre le vol. Souscription simple via Mobile Money.',
-    keywords: ['assurance', 'micro-assurance', 'artisan', 'Côte d\'Ivoire', 'santé', 'équipement', 'mobile money', 'Abidjan'],
+    description: "La premiere micro-assurance 100% digitale pour les artisans ivoiriens. Assurance sante, protection equipement et couverture contre le vol. Souscription simple via Mobile Money.",
+    keywords: ['assurance', 'micro-assurance', 'artisan', "Cote d'Ivoire", 'sante', 'equipement', 'mobile money', 'Abidjan'],
     authors: [{ name: 'Wali Team' }],
-    viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
     manifest: '/manifest.json',
     appleWebApp: {
         capable: true,
@@ -18,8 +18,8 @@ export const metadata = {
         title: 'Wali',
     },
     openGraph: {
-        title: 'Wali - Protégez votre activité et votre santé',
-        description: 'Assurance accessible pour tous les artisans. À partir de 150 FCFA/mois.',
+        title: 'Wali - Protegez votre activite et votre sante',
+        description: 'Assurance accessible pour tous les artisans. A partir de 150 FCFA/mois.',
         url: 'https://wali-pwa.fly.dev',
         siteName: 'Wali',
         locale: 'fr_CI',
@@ -27,9 +27,17 @@ export const metadata = {
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'Wali - L\'assurance des artisans',
-        description: 'Protégez-vous simplement avec Wali.',
+        title: "Wali - L'assurance des artisans",
+        description: 'Protegez-vous simplement avec Wali.',
     },
+}
+
+// Separate viewport export (Next.js 14+ best practice)
+export const viewport = {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    themeColor: '#059669',
 }
 
 export default function RootLayout({
@@ -49,7 +57,9 @@ export default function RootLayout({
                     enableSystem={false}
                     disableTransitionOnChange
                 >
-                    {children}
+                    <LanguageProvider>
+                        {children}
+                    </LanguageProvider>
                     <Toaster />
                 </ThemeProvider>
             </body>

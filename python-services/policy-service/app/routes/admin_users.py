@@ -4,7 +4,7 @@ from typing import List, Optional
 import uuid
 
 from app.core.database import get_db
-from app.core.security_middleware import verify_admin
+from app.core.security_middleware_v2 import verify_jwt, verify_admin
 from app.models.policy import User, KYCStatus, UserRole
 
 router = APIRouter(prefix="/api/v1/users/admin", tags=["admin-users"])

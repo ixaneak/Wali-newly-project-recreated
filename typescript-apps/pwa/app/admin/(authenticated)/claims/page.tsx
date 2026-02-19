@@ -15,7 +15,8 @@ import {
     CheckCircle,
     XOctagon,
     RefreshCw,
-    Download
+    Download,
+    AlertCircle
 } from 'lucide-react';
 import {
     claimsService,
@@ -30,19 +31,123 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
+// Mock claims for development fallback
+const MOCK_CLAIMS: ClaimData[] = [
+    { 
+        id: "CLM-2024-001", 
+        user_id: "USR-001", 
+        policy_id: "POL-001",
+        claim_type: "Accident de travail", 
+        amount: 150000, 
+        description: "Blessure au bras lors du travail",
+        status: "submitted", 
+        incident_date: "2024-03-15",
+        photos: [],
+        created_at: "2024-03-16T10:30:00Z",
+        updated_at: "2024-03-16T10:30:00Z"
+    },
+    { 
+        id: "CLM-2024-002", 
+        user_id: "USR-002", 
+        policy_id: "POL-002",
+        claim_type: "Vol d'outil", 
+        amount: 75000, 
+        description: "Vol de matériel sur le chantier",
+        status: "under_review", 
+        incident_date: "2024-03-10",
+        photos: [],
+        created_at: "2024-03-12T14:15:00Z",
+        updated_at: "2024-03-14T09:00:00Z"
+    },
+    { 
+        id: "CLM-2024-003", 
+        user_id: "USR-003", 
+        policy_id: "POL-003",
+        claim_type: "Maladie", 
+        amount: 50000, 
+        description: "Hospitalisation pour paludisme",
+        status: "approved", 
+        incident_date: "2024-02-28",
+        photos: [],
+        created_at: "2024-03-01T08:00:00Z",
+        updated_at: "2024-03-05T16:30:00Z",
+        review_notes: "Validé après vérification des documents",
+        reviewed_at: "2024-03-05T16:30:00Z"
+    },
+    { 
+        id: "CLM-2024-004", 
+        user_id: "USR-001", 
+        policy_id: "POL-001",
+        claim_type: "Dommage matériel", 
+        amount: 200000, 
+        description: "Échafaudage endommagé",
+        status: "paid", 
+        incident_date: "2024-02-15",
+        photos: [],
+        created_at: "2024-02-16T11:00:00Z",
+        updated_at: "2024-02-20T14:00:00Z",
+        review_notes: "Paiement effectué",
+        reviewed_at: "2024-02-20T14:00:00Z"
+    },
+    { 
+        id: "CLM-2024-005", 
+        user_id: "USR-004", 
+        policy_id: "POL-004",
+        claim_type: "Accident de travail", 
+        amount: 300000, 
+        description: "Chute depuis échafaudage",
+        status: "rejected", 
+        incident_date: "2024-01-20",
+        photos: [],
+        created_at: "2024-01-21T09:30:00Z",
+        updated_at: "2024-01-25T10:00:00Z",
+        review_notes: "Non couvert - police suspendue",
+        reviewed_at: "2024-01-25T10:00:00Z"
+    },
+    { 
+        id: "CLM-2024-006", 
+        user_id: "USR-005", 
+        policy_id: "POL-005",
+        claim_type: "Responsabilité civile", 
+        amount: 450000, 
+        description: "Dommage causé à un tiers",
+        status: "submitted", 
+        incident_date: "2024-03-18",
+        photos: [],
+        created_at: "2024-03-19T16:45:00Z",
+        updated_at: "2024-03-19T16:45:00Z"
+    },
+];
+
 export default function AdminClaimsPage() {
     const [claims, setClaims] = useState<ClaimData[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('ALL');
+    const [usingMockData, setUsingMockData] = useState(false);
 
     const fetchClaims = async () => {
         try {
             setLoading(true);
-            const data = await claimsService.getAllClaims(activeTab === 'ALL' ? undefined : activeTab.toLowerCase());
-            setClaims(data || []);
+            setUsingMockData(false);
+            const status = activeTab === 'ALL' ? undefined : activeTab.toLowerCase();
+            const data = await claimsService.getAllClaims(status);
+            
+            if (data && data.length > 0) {
+                setClaims(data);
+                if (usingMockData) {
+                    toast.success("Données en temps réel chargées");
+                }
+            } else {
+                console.log("No claims from API, using mock data");
+                setClaims(MOCK_CLAIMS);
+                setUsingMockData(true);
+            }
         } catch (error) {
             console.error("Claims fetch error:", error);
+            toast.error("Erreur de connexion au serveur. Données de démonstration affichées.");
+            setClaims(MOCK_CLAIMS);
+            setUsingMockData(true);
         } finally {
             setLoading(false);
         }
@@ -55,20 +160,65 @@ export default function AdminClaimsPage() {
     const filteredClaims = (claims || []).filter(c =>
         c?.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c?.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c?.user_id?.toLowerCase().includes(searchQuery.toLowerCase())
+        c?.user_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c?.claim_type?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const getStatusBadge = (status?: string) => {
         const s = status?.toLowerCase();
         switch (s) {
-            case 'submitted': return <Badge variant="info" className="bg-sky-500/10 text-sky-500">DÉPOSÉ</Badge>;
-            case 'under_review': return <Badge variant="warning" className="bg-amber-500/10 text-amber-500">EXAMEN</Badge>;
-            case 'approved': return <Badge variant="success" className="bg-emerald-500/10 text-emerald-500">APPROUVÉ</Badge>;
-            case 'rejected': return <Badge variant="error" className="bg-rose-500/10 text-rose-500">REJETÉ</Badge>;
+            case 'submitted': return <Badge variant="info" className="bg-sky-500/10 text-sky-500 border-sky-500/20">DÉPOSÉ</Badge>;
+            case 'under_review': return <Badge variant="warning" className="bg-amber-500/10 text-amber-500 border-amber-500/20">EXAMEN</Badge>;
+            case 'approved': return <Badge variant="success" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">APPROUVÉ</Badge>;
+            case 'rejected': return <Badge variant="error" className="bg-rose-500/10 text-rose-500 border-rose-500/20">REJETÉ</Badge>;
             case 'paid': return <Badge className="bg-emerald-600/20 text-emerald-400 border-emerald-500/30">PAYÉ</Badge>;
             default: return <Badge variant="default">{s || 'INCONNU'}</Badge>;
         }
     };
+
+    const getStatusLabel = (status?: string) => {
+        const s = status?.toLowerCase();
+        switch (s) {
+            case 'submitted': return 'Déposé';
+            case 'under_review': return 'En examen';
+            case 'approved': return 'Approuvé';
+            case 'rejected': return 'Rejeté';
+            case 'paid': return 'Payé';
+            default: return status || 'Inconnu';
+        }
+    };
+
+    const exportClaims = () => {
+        const csv = [
+            ['ID', 'Artisan ID', 'Type', 'Montant (FCFA)', 'Statut', 'Date incident', 'Date création'].join(','),
+            ...filteredClaims.map(c => [
+                c.id,
+                c.user_id,
+                `"${c.claim_type || ''}"`,
+                c.amount,
+                c.status,
+                new Date(c.incident_date || '').toLocaleDateString('fr-FR'),
+                new Date(c.created_at).toLocaleDateString('fr-FR')
+            ].join(','))
+        ].join('\n');
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `claims-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        toast.success(`${filteredClaims.length} claims exportés`);
+    };
+
+    const stats = [
+        { label: 'Soumis', count: claims.filter(c => c.status === 'submitted').length, icon: Clock, color: 'sky' as const },
+        { label: 'Examen', count: claims.filter(c => c.status === 'under_review').length, icon: Search, color: 'amber' as const },
+        { label: 'Payés', count: claims.filter(c => c.status === 'paid').length, icon: Banknote, color: 'emerald' as const },
+        { label: 'Rejetés', count: claims.filter(c => c.status === 'rejected').length, icon: XOctagon, color: 'rose' as const },
+    ];
 
     return (
         <div className="space-y-10 min-h-screen bg-slate-950 pb-20">
@@ -77,14 +227,19 @@ export default function AdminClaimsPage() {
                 description="Suivi et approbation des demandes d'indemnisation"
             />
 
+            {/* Mock Data Warning */}
+            {usingMockData && (
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-500" />
+                    <p className="text-amber-400 text-sm">
+                        Mode démonstration : Données simulées affichées. La connexion au serveur a échoué.
+                    </p>
+                </div>
+            )}
+
             {/* Top Status Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {[
-                    { label: 'Soumis', count: claims.filter(c => c.status === 'submitted').length || 12, icon: Clock, color: 'sky' },
-                    { label: 'Examen', count: claims.filter(c => c.status === 'under_review').length || 5, icon: Search, color: 'amber' },
-                    { label: 'Payés', count: claims.filter(c => c.status === 'paid').length || 142, icon: Banknote, color: 'emerald' },
-                    { label: 'Rejetés', count: claims.filter(c => c.status === 'rejected').length || 24, icon: XOctagon, color: 'rose' },
-                ].map((stat, i) => (
+                {stats.map((stat, i) => (
                     <Card key={i} className="border-slate-800 bg-slate-900/40">
                         <CardContent className="p-6 flex items-center gap-4">
                             <div className={cn(
@@ -112,9 +267,13 @@ export default function AdminClaimsPage() {
                                 <TabsTrigger
                                     key={tab}
                                     value={tab}
-                                    className="px-4 text-[9px] font-black tracking-tighter uppercase data-[state=active]:bg-cyan-500 data-[state=active]:text-white"
+                                    className="px-3 text-[9px] font-black tracking-tighter uppercase data-[state=active]:bg-cyan-500 data-[state=active]:text-white"
                                 >
-                                    {tab.replace('_', ' ')}
+                                    {tab === 'ALL' ? 'TOUS' : 
+                                     tab === 'SUBMITTED' ? 'DÉPOSÉS' :
+                                     tab === 'UNDER_REVIEW' ? 'EXAMEN' :
+                                     tab === 'APPROVED' ? 'APPROUVÉS' :
+                                     tab === 'REJECTED' ? 'REJETÉS' : 'PAYÉS'}
                                 </TabsTrigger>
                             ))}
                         </TabsList>
@@ -191,13 +350,15 @@ export default function AdminClaimsPage() {
                 </CardContent>
             </Card>
 
-            {/* Bulk Footer Actions - Mock indicator */}
+            {/* Bulk Footer Actions */}
             <div className="fixed bottom-10 right-10 flex gap-4 animate-in slide-in-from-bottom-10">
-                <Button variant="outline" className="bg-slate-950/80 backdrop-blur-xl border-slate-800 h-14 px-8 font-black uppercase tracking-widest text-[10px] text-slate-400">
+                <Button 
+                    variant="outline" 
+                    className="bg-slate-950/80 backdrop-blur-xl border-slate-800 h-14 px-8 font-black uppercase tracking-widest text-[10px] text-slate-400"
+                    onClick={exportClaims}
+                >
+                    <Download size={16} className="mr-2" />
                     EXPORTER CSV
-                </Button>
-                <Button variant="cyan" className="h-14 px-10 font-black uppercase tracking-widest text-[10px]">
-                    NOUVEAU CLAIM (MANUEL)
                 </Button>
             </div>
         </div>

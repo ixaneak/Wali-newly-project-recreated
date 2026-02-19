@@ -13,5 +13,10 @@ python-multipart
 firebase-admin
 python-jose[cryptography]
 passlib[bcrypt]
-psycopg2-binary
 slowapi
+lxml
+
+# WhatsApp Business API Dependencies
+Pillow>=10.0.0
+imagehash>=4.3.1
+tenacity>=8.2.0

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { pharmacyService } from '@/lib/api-client';
+import Link from 'next/link';
 import { PharmacyPartner } from '@/types/app';
 import { Scan, Activity, Calendar, ShieldCheck, AlertCircle, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
@@ -29,16 +30,8 @@ export default function PharmacyDashboard() {
         loadStats();
     }, []);
 
-    const handleScan = () => {
-        router.push('/pharmacy/verify');
-    };
-
     const handleLogout = () => {
-        localStorage.removeItem('pharmacy_token');
-        localStorage.removeItem('pharmacy_api_key');
-        localStorage.removeItem('user_role');
-        localStorage.removeItem('subscription_status');
-        localStorage.removeItem('business_name');
+        pharmacyService.logout();
         toast.success("Déconnexion réussie");
         router.push('/pharmacy/login');
     };
@@ -91,16 +84,17 @@ export default function PharmacyDashboard() {
             </div>
 
             {/* Main Action */}
-            <button
-                onClick={handleScan}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg shadow-emerald-500/20 transition mb-8 group"
-            >
-                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition">
-                    <Scan className="w-8 h-8" />
-                </div>
-                <span className="text-xl font-bold">Vérifier une couverture</span>
-                <span className="text-emerald-100 text-sm">Scanner le QR Code artisan</span>
-            </button>
+            <Link href="/pharmacy/verify">
+                <button
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl p-6 flex flex-col items-center justify-center gap-3 shadow-lg shadow-emerald-500/20 transition mb-8 group"
+                >
+                    <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition">
+                        <Scan className="w-8 h-8" />
+                    </div>
+                    <span className="text-xl font-bold">Vérifier une couverture</span>
+                    <span className="text-emerald-100 text-sm">Scanner le QR Code artisan</span>
+                </button>
+            </Link>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-4">

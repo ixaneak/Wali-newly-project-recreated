@@ -7,14 +7,19 @@ const withPWA = require("@ducanh2912/next-pwa").default({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    turbopack: {},
     reactStrictMode: false,
     poweredByHeader: false,
-    output: 'standalone',
+    // output: 'standalone',
     async rewrites() {
         return [
             {
                 source: '/api/v1/policy/:path*',
                 destination: 'http://localhost:8000/api/v1/:path*',
+            },
+            {
+                source: '/api/v1/policies/:path*',
+                destination: 'http://localhost:8000/api/v1/policies/:path*',
             },
             {
                 source: '/api/v1/users/:path*',
@@ -38,7 +43,7 @@ const nextConfig = {
             },
             {
                 source: '/api/v1/payments/:path*',
-                destination: 'http://localhost:8080/api/v1/payments/:path*',
+                destination: 'http://localhost:8001/api/v1/payments/:path*',
             },
             {
                 source: '/api/v1/notifications/:path*',
@@ -48,5 +53,5 @@ const nextConfig = {
     },
 }
 
-// module.exports = withPWA(nextConfig)
-module.exports = nextConfig
+// Enable PWA for production
+module.exports = withPWA(nextConfig)

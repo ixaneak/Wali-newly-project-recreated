@@ -1,0 +1,55 @@
+# Fly.io Configuration for WALI Policy Service
+# Production Scaling: 10,000 concurrent users
+# 
+# Deploy: fly deploy --config infrastructure/fly-policy-service.toml
+
+app = "wali-policy-service"
+primary_region = "jnb"  # Johannesburg - closest to Ivory Coast
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  SERVICE_NAME = "policy-service"
+  PORT = "8000"
+  # Database pool will auto-configure based on SERVICE_NAME
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  
+  # Auto-scaling for high load
+  auto_stop_machines = false     # Keep running during business hours (8 AM - 8 PM GMT)
+  auto_start_machines = true
+  min_machines_running = 2       # Always keep 2 for redundancy
+  max_machines_running = 20      # Scale up to 20 under extreme load
+
+  # Concurrency limits - spawn new machine when reached
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 250             # Max connections per machine
+    soft_limit = 100             # Start new machine at 100 connections
+
+  # Health checks
+  [[http_service.checks]]
+    interval = "10s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
+    protocol = "http"
+
+# Machine sizing - performance-2x for high load
+[[vm]]
+  size = "performance-2x"        # 2 CPU, 4GB RAM
+  memory = "4gb"
+
+# Mount for temporary file storage (QR codes, exports)
+[[mounts]]
+  source = "policy_storage"
+  destination = "/tmp/storage"
+
+# Log configuration
+[metrics]
+  port = 8000
+  path = "/metrics"

@@ -1,0 +1,134 @@
+﻿
+         /\      Grafana   /ΓÇ╛ΓÇ╛/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ΓÇ╛ΓÇ╛\ 
+  /          \   |   (  |  (ΓÇ╛)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: load-tests/wali-local-test.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 5 max VUs, 10m30s max duration (incl. graceful stop):
+              * default: 20 iterations shared among 5 VUs (maxDuration: 10m0s, gracefulStop: 30s)
+
+.\k6.exe : time="2026-02-
+18T14:10:17-05:00" 
+level=info msg="WALI 
+Local Load Test 
+targeting 
+http://localhost:8000" 
+source=console
+At line:1 char:138
++ ... .txt" -Raw; 
+.\k6.exe run --summary-ex
+port=load-tests/local-sum
+mary.js ...
++                 ~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo       
+       : NotSpecified:   
+  (time="2026-02-1...    
+ source=console:Strin    
+g) [], RemoteExcepti    
+on
+    + FullyQualifiedErro 
+   rId : NativeCommandE  
+  rror
+ 
+time="2026-02-18T14:10:17
+-05:00" level=info 
+msg="Max 50 VUs over 
+~2.5 minutes" 
+source=console
+time="2026-02-18T14:10:17
+-05:00" level=info 
+msg="Policy service is 
+UP" source=console
+
+running (00m01.0s), 5/5 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 5 VUs  00m01.0s/10m0s  00/20 shared iters
+
+running (00m02.0s), 5/5 VUs, 2 complete and 0 interrupted iterations
+default   [  10% ] 5 VUs  00m02.0s/10m0s  02/20 shared iters
+
+running (00m03.0s), 5/5 VUs, 6 complete and 0 interrupted iterations
+default   [  30% ] 5 VUs  00m03.0s/10m0s  06/20 shared iters
+
+running (00m04.0s), 5/5 VUs, 8 complete and 0 interrupted iterations
+default   [  40% ] 5 VUs  00m04.0s/10m0s  08/20 shared iters
+
+running (00m05.0s), 5/5 VUs, 12 complete and 0 interrupted iterations
+default   [  60% ] 5 VUs  00m05.0s/10m0s  12/20 shared iters
+
+running (00m06.0s), 4/5 VUs, 16 complete and 0 interrupted iterations
+default   [  80% ] 5 VUs  00m06.0s/10m0s  16/20 shared iters
+
+running (00m07.0s), 2/5 VUs, 18 complete and 0 interrupted iterations
+default   [  90% ] 5 VUs  00m07.0s/10m0s  18/20 shared iters
+time="2026-02-18T14:10:24
+-05:00" level=info 
+msg="Completed in 7.2s" 
+source=console
+
+     Γûê Health Check
+
+       Γ£ù health 200
+        Γå│  45% ΓÇö Γ£ô 9 / Γ£ù 11
+       Γ£ô health < 200ms
+
+     Γûê SAR Scan
+
+       Γ£ô scan 200
+
+     Γûê Risk Events
+
+       Γ£ô events 200
+
+     Γûê SAR Dashboard
+
+       Γ£ô dashboard 200
+
+     Γûê SAR Reports
+
+       Γ£ô reports 200
+
+     Γûê Enrollment
+
+       Γ£ô enrollment not 500
+
+     checks.........................: 92.14% 129 out of 140
+     data_received..................: 288 kB 40 kB/s
+     data_sent......................: 39 kB  5.4 kB/s
+     errors.........................: 13.75% 11 out of 80
+     group_duration.................: avg=6.54ms   min=1.01ms  med=5.71ms   max=26.73ms p(90)=11.19ms  p(95)=18.21ms  
+   Γ£ô health_check_time..............: avg=4.283965 min=1.0368  med=2.28045  max=10.3448 p(90)=9.87689  p(95)=10.3448  
+     http_req_blocked...............: avg=25.95┬╡s  min=0s      med=0s       max=523.8┬╡s p(90)=0s       p(95)=0s       
+     http_req_connecting............: avg=17.31┬╡s  min=0s      med=0s       max=523.8┬╡s p(90)=0s       p(95)=0s       
+   Γ£ô http_req_duration..............: avg=6.42ms   min=1.01ms  med=5.4ms    max=26.73ms p(90)=11.15ms  p(95)=18.08ms  
+       { expected_response:true }...: avg=7.2ms    min=1.12ms  med=5.89ms   max=26.73ms p(90)=14.5ms   p(95)=22.61ms  
+   Γ£ù http_req_failed................: 25.61% 31 out of 121
+     http_req_receiving.............: avg=593.51┬╡s min=0s      med=516.7┬╡s  max=4.21ms  p(90)=1.47ms   p(95)=1.54ms   
+     http_req_sending...............: avg=12.64┬╡s  min=0s      med=0s       max=1ms     p(90)=0s       p(95)=0s       
+     http_req_tls_handshaking.......: avg=0s       min=0s      med=0s       max=0s      p(90)=0s       p(95)=0s       
+     http_req_waiting...............: avg=5.81ms   min=503.6┬╡s med=4.47ms   max=26.22ms p(90)=9.89ms   p(95)=17.28ms  
+     http_reqs......................: 121    16.858498/s
+     iteration_duration.............: avg=1.58s    min=1.01s   med=2.01s    max=2.06s   p(90)=2.06s    p(95)=2.06s    
+     iterations.....................: 20     2.786529/s
+     risk_event_time................: avg=6.123795 min=2.0154  med=5.96625  max=11.1584 p(90)=9.90323  p(95)=10.446755
+   Γ£ô sar_dashboard_time.............: avg=4.582455 min=1.1207  med=3.6825   max=9.6688  p(90)=7.75043  p(95)=9.524115 
+     sar_detections.................: 13     1.811244/s
+   Γ£ô sar_scan_time..................: avg=14.72585 min=5.5528  med=13.78445 max=26.7377 p(90)=26.18694 p(95)=26.25073 
+     vus............................: 2      min=2          max=5
+     vus_max........................: 5      min=5          max=5
+
+
+running (00m07.2s), 0/5 VUs, 20 complete and 0 interrupted iterations
+default Γ£ô [ 100% ] 5 VUs  00m07.2s/10m0s  20/20 shared iters
+time="2026-02-18T14:10:24
+-05:00" level=error 
+msg="thresholds on 
+metrics 
+'http_req_failed' have 
+been crossed"

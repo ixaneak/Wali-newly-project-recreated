@@ -10,17 +10,24 @@ import {
     CreditCard,
     ChartLine,
     Settings,
-    LogOut
+    LogOut,
+    Building2,
+    Shield,
+    Bell
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { adminAuth } from '@/lib/api-client';
 
 const sidebarItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid, href: '/admin/dash' },
     { id: 'claims', label: 'Claims', icon: FileText, href: '/admin/claims' },
     { id: 'users', label: 'Users', icon: Users, href: '/admin/users' },
+    { id: 'pharmacies', label: 'Pharmacies', icon: Building2, href: '/admin/pharmacies' },
     { id: 'payments', label: 'Payments', icon: CreditCard, href: '/admin/payments' },
     { id: 'analytics', label: 'Analytics', icon: ChartLine, href: '/admin/analytics' },
+    { id: 'compliance', label: 'Compliance', icon: Shield, href: '/admin/compliance' },
+    { id: 'notifications', label: 'Notifications', icon: Bell, href: '/admin/notifications' },
     { id: 'settings', label: 'Settings', icon: Settings, href: '/admin/settings' },
 ];
 
@@ -28,11 +35,24 @@ export default function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
 
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        toast.success("Déconnecté avec succès");
-        router.push('/admin');
+    const handleLogout = async () => {
+        try {
+            // Call logout API
+            await adminAuth.logout();
+        } catch (e) {
+            // Ignore errors
+        } finally {
+            // Clear localStorage
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('admin_user');
+            
+            // Clear auth cookie
+            document.cookie = 'wali_auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+            
+            toast.success("Déconnecté avec succès");
+            router.push('/admin');
+        }
     };
 
     return (
@@ -40,9 +60,12 @@ export default function Sidebar() {
             {/* Mobile Toggle Placeholder - Could be implemented with a sheet component */}
             <aside className="fixed left-0 top-0 h-full w-64 bg-[#0f172a] border-r border-slate-800 z-50 hidden md:flex flex-col shadow-2xl shadow-sky-950/20">
                 <div className="p-8 pb-10 flex items-center justify-center">
-                    <div className="w-16 h-16 rounded-xl bg-[#0ea5e9] flex items-center justify-center shadow-xl shadow-sky-500/20 hover:scale-105 transition-transform cursor-pointer">
-                        <span className="text-4xl font-black text-white">W</span>
-                    </div>
+                    <Link href="/admin/dash" className="w-16 h-16 rounded-xl bg-white flex items-center justify-center shadow-xl shadow-emerald-500/20 hover:scale-105 transition-transform cursor-pointer">
+                        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-12 h-12">
+                            <rect x="2" y="2" width="44" height="44" rx="14" fill="white"/>
+                            <path d="M12 28 Q18 16 24 22 Q30 16 36 28" stroke="#00b386" strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                        </svg>
+                    </Link>
                 </div>
 
                 <nav className="flex-1 px-4 space-y-2">

@@ -16,7 +16,7 @@ from xml.dom import minidom
 from sqlalchemy import func
 
 from app.core.database import get_db
-from app.core.security_middleware import verify_admin
+from app.core.security_middleware_v2 import verify_jwt, verify_admin
 from app.models.financial_event import FinancialEvent
 from app.models.tax_exemption import TaxExemptionTracking
 from app.config.compliance import IS_SAAS_PLATFORM, BUSINESS_MODEL, NAF_CODE

@@ -2,13 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import secrets
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 
 from app.core.database import get_db
 from app.models.pharmacy import PharmacyPartner, SubscriptionStatus
+from app.models.policy import CoverageSubscription as Subscription, User
 from app.core.config import get_settings
 
 router = APIRouter(
@@ -33,6 +34,12 @@ class PharmacyLoginRequest(BaseModel):
 
 class VerificationRequest(BaseModel):
     qr_token: str # Format: PHONE:POLICY_ID
+
+class PharmacyVerifyRequest(BaseModel):
+    """Request schema for pharmacy verification."""
+    qr_token: str = Field(..., description="The QR token scanned from the policy card")
+    location_lat: Optional[float] = Field(None, description="Latitude of the pharmacy")
+    location_lon: Optional[float] = Field(None, description="Longitude of the pharmacy")
 
 class ReimbursementRequest(BaseModel):
     artisan_phone: str
@@ -197,9 +204,52 @@ def get_stats(x_api_key: Optional[str] = Header(None), db: Session = Depends(get
     }
 
 @router.post("/verify")
-def verify_claim(request: VerificationRequest, pharma: PharmacyPartner = Depends(get_current_pharmacy), db: Session = Depends(get_db)):
-    # Simple placeholder for now
-    return {"status": "verified", "message": "Coverage confirmed"}
+def verify_claim(request: PharmacyVerifyRequest, pharma: PharmacyPartner = Depends(get_current_pharmacy), db: Session = Depends(get_db)):
+    # 1. Look up policy by QR token
+    if not request.qr_token:
+        raise HTTPException(status_code=400, detail="QR Token required")
+        
+    subscription = db.query(Subscription).filter(Subscription.qr_token == request.qr_token).first()
+    
+    # Fallback: check if it's a member ID or Phone (legacy/manual entry support)
+    if not subscription:
+        subscription = db.query(Subscription).join(User).filter(
+            (User.id == request.qr_token) | (User.phone == request.qr_token) | (Subscription.subscription_number == request.qr_token)
+        ).first()
+
+    if not subscription:
+        raise HTTPException(
+            status_code=404, 
+            detail="Polyclinique non trouvée ou code QR invalide"
+        )
+        
+    # 2. Check Status
+    if subscription.status != SubscriptionStatus.ACTIVE:
+        return {
+            "status": "inactive",
+            "message": f"Assurance inactive ({subscription.status.value})"
+        }
+        
+    # 3. Check Expiration
+    if subscription.qr_expires_at and subscription.qr_expires_at < datetime.utcnow():
+        return {
+            "status": "expired",
+            "message": "Code QR expiré. Veuillez rafraîchir la carte."
+        }
+        
+    # 4. Success - Return Member Details
+    # We need to fetch user details. The relationship might be lazy.
+    user = db.query(User).filter(User.id == subscription.user_id).first()
+    
+    return {
+        "status": "active",
+        "memberId": subscription.subscription_number,
+        "name": user.name if user else "Unknown",
+        "plan": subscription.partner_product_id,
+        "coverageLimit": 80, # Hardcoded for now, or fetch from config
+        "copay": 20,
+        "lastPayment": subscription.last_payment_date.strftime("%Y-%m-%d") if subscription.last_payment_date else "N/A"
+    }
 
 @router.post("/reimburse")
 def request_reimbursement(request: ReimbursementRequest, pharma: PharmacyPartner = Depends(get_current_pharmacy), db: Session = Depends(get_db)):

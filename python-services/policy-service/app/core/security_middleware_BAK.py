@@ -97,17 +97,25 @@ except ImportError:
     firebase_admin = None
     auth = None
 
-def decode_jwt(token: str) -> dict:
+def decode_jwt_v2(token: str) -> dict:
     """
     Decode and validate Firebase ID token.
     Falls back to local JWT in development if Firebase fails or is not configured.
     """
+    raise Exception("I AM HERE")
+    try:
+        with open("C:\\Users\\User\\.gemini\\antigravity\\scratch\\wali-backend\\python-services\\policy-service\\debug_auth.log", "a") as f:
+            f.write(f"DEBUG: decode_jwt called with token len={len(token)}\n")
+            f.write(f"DEBUG: token='{token}'\n")
+            f.write(f"DEBUG: settings.environment = '{settings.environment}' (type: {type(settings.environment)})\n")
+    except Exception as e:
+        print(f"DEBUG: Failed to write log: {e}")
+    
     # 0. Dev/Demo mock token bypass (development only)
     # SECURITY: This mock token MUST only be accepted in development environments.
     # In production, this block is skipped, and the token is subjected to real verification.
     if token == "mock-custom-token-backend":
-        import os
-        if os.getenv('ENV') != 'development':
+        if settings.environment != 'development':
             logger.warning("Attempted to use mock token in non-development environment. Blocking.")
             pass  # Fall through to normal verification — will be rejected
         else:
@@ -174,11 +182,12 @@ async def verify_jwt(
     """
     FastAPI dependency for JWT verification (Firebase + Local fallback).
     """
-    # Get client IP for rate limiting
     client_ip = request.client.host if request.client else "unknown"
+    print(f"DEBUG: verify_jwt entered, ip={client_ip}", flush=True)
     check_rate_limit(client_ip)
     
     if credentials is None:
+        print("DEBUG: No credentials provided", flush=True)
         raise HTTPException(
             status_code=401,
             detail="Authorization header required",
@@ -186,8 +195,9 @@ async def verify_jwt(
         )
     
     token = credentials.credentials
+    print(f"DEBUG: Got token: {token[:10]}...", flush=True)
     try:
-        payload = decode_jwt(token)
+        payload = decode_jwt_v2(token)
     except Exception as e:
         # Catch-all for decoder errors that weren't HTTPExceptions
         raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")

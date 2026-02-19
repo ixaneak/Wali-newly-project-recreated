@@ -8,6 +8,11 @@ from .partner import Partner, PartnerInvoice, PlatformUsageLog, PartnerApiConfig
 from .claim import Claim
 from .pharmacy import PharmacyPartner
 
+# SAR / AML Compliance
+from .sar_report import SarReport
+from .risk_event import RiskEvent
+from .compliance_list import ComplianceListEntry
+
 __all__ = [
     # Core enrollment model (was: Policy)
     "CoverageSubscription", "Policy",  # Policy = backward alias
@@ -23,4 +28,6 @@ __all__ = [
     "Claim",
     # Pharmacy
     "PharmacyPartner",
+    # SAR / AML Compliance
+    "SarReport", "RiskEvent", "ComplianceListEntry",
 ]

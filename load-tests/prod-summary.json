@@ -1,0 +1,366 @@
+{
+    "metrics": {
+        "vus": {
+            "value": 1,
+            "min": 1,
+            "max": 5
+        },
+        "ai_response_time": {
+            "med": 2.5,
+            "max": 10,
+            "p(90)": 6.700000000000001,
+            "p(95)": 8.349999999999998,
+            "avg": 3.1666666666666665,
+            "min": 0,
+            "thresholds": {
+                "p(95)<3000": false
+            }
+        },
+        "http_req_connecting": {
+            "p(90)": 0.8109600000000116,
+            "p(95)": 5.212459999999999,
+            "avg": 0.527065137614679,
+            "min": 0,
+            "med": 0,
+            "max": 6.3152
+        },
+        "http_req_duration{expected_response:true}": {
+            "max": 164.7882,
+            "p(90)": 161.22375,
+            "p(95)": 163.00597499999998,
+            "avg": 119.51252000000002,
+            "min": 79.3494,
+            "med": 118.3453
+        },
+        "http_req_waiting": {
+            "min": 0,
+            "med": 80.3415,
+            "max": 169.1022,
+            "p(90)": 155.87781999999999,
+            "p(95)": 160.81369999999998,
+            "avg": 75.78499816513764
+        },
+        "vus_max": {
+            "value": 5,
+            "min": 5,
+            "max": 5
+        },
+        "http_req_duration": {
+            "min": 0,
+            "med": 80.5143,
+            "max": 169.1022,
+            "p(90)": 155.9792,
+            "p(95)": 161.01802,
+            "avg": 75.88149724770643,
+            "thresholds": {
+                "p(95)<500": false
+            }
+        },
+        "http_req_failed": {
+            "passes": 99,
+            "fails": 10,
+            "thresholds": {
+                "rate<0.01": true
+            },
+            "value": 0.908256880733945
+        },
+        "qr_generation_time": {
+            "avg": 100.66666666666667,
+            "min": 79,
+            "med": 81,
+            "max": 162,
+            "p(90)": 161.4,
+            "p(95)": 162,
+            "thresholds": {
+                "p(95)<200": false
+            }
+        },
+        "iterations": {
+            "rate": 0.27097532793349505,
+            "count": 12
+        },
+        "claim_submission_time": {
+            "p(90)": 153.9,
+            "p(95)": 158.04999999999998,
+            "avg": 105.08333333333333,
+            "min": 79,
+            "med": 80.5,
+            "max": 163
+        },
+        "checks": {
+            "passes": 117,
+            "fails": 87,
+            "value": 0.5735294117647058
+        },
+        "data_received": {
+            "count": 44249,
+            "rate": 999.1989404774353
+        },
+        "pharmacy_check_errors": {
+            "fails": 0,
+            "passes": 12,
+            "thresholds": {
+                "rate<0.05": true
+            },
+            "value": 1
+        },
+        "group_duration": {
+            "max": 10009.4292,
+            "p(90)": 5173.8448,
+            "p(95)": 7251.233200000001,
+            "avg": 1723.0303447916667,
+            "min": 0,
+            "med": 159.94389999999999
+        },
+        "http_reqs": {
+            "rate": 2.461359228729247,
+            "count": 109
+        },
+        "http_req_sending": {
+            "max": 1.5291,
+            "p(90)": 0,
+            "p(95)": 0.30227999999999716,
+            "avg": 0.037610091743119266,
+            "min": 0,
+            "med": 0
+        },
+        "webhook_processing_time": {
+            "avg": 3.25,
+            "min": 0,
+            "med": 1,
+            "max": 14,
+            "p(90)": 10.400000000000002,
+            "p(95)": 12.349999999999998
+        },
+        "iteration_duration": {
+            "p(95)": 18692.000874999998,
+            "avg": 15451.333175000002,
+            "min": 11955.2773,
+            "med": 15268.60585,
+            "max": 19841.3972,
+            "p(90)": 17634.36869
+        },
+        "data_sent": {
+            "count": 17700,
+            "rate": 399.6886087019052
+        },
+        "http_req_tls_handshaking": {
+            "p(90)": 1.3852600000000197,
+            "p(95)": 13.050959999999995,
+            "avg": 1.3412229357798164,
+            "min": 0,
+            "med": 0,
+            "max": 18.0256
+        },
+        "http_req_blocked": {
+            "p(95)": 20.083699999999972,
+            "avg": 2.0814954128440366,
+            "min": 0,
+            "med": 0,
+            "max": 30.0557,
+            "p(90)": 2.196220000000031
+        },
+        "http_req_receiving": {
+            "max": 2.2842,
+            "p(90)": 0,
+            "p(95)": 0.5152999999999999,
+            "avg": 0.05888899082568807,
+            "min": 0,
+            "med": 0
+        }
+    },
+    "setup_data": {
+        "startTime": 1771441978758
+    },
+    "root_group": {
+        "checks": {},
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {
+                "Health Check": {
+                    "id": "167c726a79efe9afd2c220eb9d49c1a2",
+                    "groups": {},
+                    "checks": {
+                            "health status is 200": {
+                                "name": "health status is 200",
+                                "path": "::Health Check::health status is 200",
+                                "id": "543033285a2a23dab75388ec63504545",
+                                "passes": 9,
+                                "fails": 3
+                            },
+                            "health response time <200ms": {
+                                "name": "health response time <200ms",
+                                "path": "::Health Check::health response time <200ms",
+                                "id": "6c16eff327a7bf880b9479f416abf3dc",
+                                "passes": 12,
+                                "fails": 0
+                            }
+                        },
+                    "name": "Health Check",
+                    "path": "::Health Check"
+                },
+                "QR Generation": {
+                    "name": "QR Generation",
+                    "path": "::QR Generation",
+                    "id": "8c54b9424ea716e987debd6a214861c1",
+                    "groups": {},
+                    "checks": {
+                            "qr status is 200 or 404": {
+                                "path": "::QR Generation::qr status is 200 or 404",
+                                "id": "5e9e4a4775fa8cb1880535250b92387f",
+                                "passes": 12,
+                                "fails": 0,
+                                "name": "qr status is 200 or 404"
+                            },
+                            "qr response time <500ms": {
+                                "name": "qr response time <500ms",
+                                "path": "::QR Generation::qr response time <500ms",
+                                "id": "1c327a87d6be729f705d15c4e81f28ab",
+                                "passes": 12,
+                                "fails": 0
+                            }
+                        }
+                },
+                "Policy Enrollment": {
+                    "path": "::Policy Enrollment",
+                    "id": "70a6fed1085c217d053ba7636dcf57d4",
+                    "groups": {},
+                    "checks": {
+                            "enrollment accepted": {
+                                "name": "enrollment accepted",
+                                "path": "::Policy Enrollment::enrollment accepted",
+                                "id": "9c2160140e50d37d771a275414180a7f",
+                                "passes": 0,
+                                "fails": 12
+                            },
+                            "enrollment response time <800ms": {
+                                "name": "enrollment response time <800ms",
+                                "path": "::Policy Enrollment::enrollment response time <800ms",
+                                "id": "10bbc48e8f563594497a8ee63c8ef4a4",
+                                "passes": 12,
+                                "fails": 0
+                            }
+                        },
+                    "name": "Policy Enrollment"
+                },
+                "Pharmacy Verification": {
+                    "path": "::Pharmacy Verification",
+                    "id": "f0f066d31d61c65c8481fbc54b651e21",
+                    "groups": {},
+                    "checks": {
+                            "pharmacy verify status is 200": {
+                                "name": "pharmacy verify status is 200",
+                                "path": "::Pharmacy Verification::pharmacy verify status is 200",
+                                "id": "b2c9108a2c3bd94901445396dc995483",
+                                "passes": 0,
+                                "fails": 12
+                            },
+                            "pharmacy response time <800ms": {
+                                "name": "pharmacy response time <800ms",
+                                "path": "::Pharmacy Verification::pharmacy response time <800ms",
+                                "id": "12db0500915f3cec7d3b36691ff4e741",
+                                "passes": 12,
+                                "fails": 0
+                            }
+                        },
+                    "name": "Pharmacy Verification"
+                },
+                "Incident Report": {
+                    "id": "b075aef3a515e7a9ca324428ebb81525",
+                    "groups": {},
+                    "checks": {
+                            "incident submitted": {
+                                "path": "::Incident Report::incident submitted",
+                                "id": "d39bcbcfd199a4740e4a688d96c1950f",
+                                "passes": 0,
+                                "fails": 12,
+                                "name": "incident submitted"
+                            },
+                            "incident response time <1000ms": {
+                                "id": "1205ce4b6f8ba445a4d59c02092ff9d8",
+                                "passes": 12,
+                                "fails": 0,
+                                "name": "incident response time <1000ms",
+                                "path": "::Incident Report::incident response time <1000ms"
+                            }
+                        },
+                    "name": "Incident Report",
+                    "path": "::Incident Report"
+                },
+                "AI Concierge": {
+                    "name": "AI Concierge",
+                    "path": "::AI Concierge",
+                    "id": "cd91eed866a30a6863aa2b4431ac98af",
+                    "groups": {},
+                    "checks": {
+                            "chat status is 200": {
+                                "id": "4b2580019bb0126b67846e9e36215dfb",
+                                "passes": 0,
+                                "fails": 12,
+                                "name": "chat status is 200",
+                                "path": "::AI Concierge::chat status is 200"
+                            },
+                            "chat response time <3000ms": {
+                                "passes": 12,
+                                "fails": 0,
+                                "name": "chat response time <3000ms",
+                                "path": "::AI Concierge::chat response time <3000ms",
+                                "id": "23c75a2554858e1da9b94dc3726f0f34"
+                            }
+                        }
+                },
+                "Payment Webhook": {
+                    "path": "::Payment Webhook",
+                    "id": "fb72158198e6e1ac7482773e07ff75c0",
+                    "groups": {},
+                    "checks": {
+                            "webhook accepted": {
+                                "name": "webhook accepted",
+                                "path": "::Payment Webhook::webhook accepted",
+                                "id": "15b2f091343e12625630b61ab179d5ec",
+                                "passes": 0,
+                                "fails": 12
+                            },
+                            "webhook processed quickly": {
+                                "name": "webhook processed quickly",
+                                "path": "::Payment Webhook::webhook processed quickly",
+                                "id": "ff6e12cea630a5608096f9b8d6c2b1dd",
+                                "passes": 12,
+                                "fails": 0
+                            }
+                        },
+                    "name": "Payment Webhook"
+                },
+                "Compliance Dashboard": {
+                    "name": "Compliance Dashboard",
+                    "path": "::Compliance Dashboard",
+                    "id": "a52b669b12e614820f000cf436dce5d8",
+                    "groups": {},
+                    "checks": {
+                            "dashboard stats loaded": {
+                                "name": "dashboard stats loaded",
+                                "path": "::Compliance Dashboard::dashboard stats loaded",
+                                "id": "dde21b42fcb6443c592a32038d0d83f8",
+                                "passes": 0,
+                                "fails": 12
+                            },
+                            "dashboard response time <500ms": {
+                                "id": "57b32393474a968ffba5b9a6a50f1f8e",
+                                "passes": 12,
+                                "fails": 0,
+                                "name": "dashboard response time <500ms",
+                                "path": "::Compliance Dashboard::dashboard response time <500ms"
+                            },
+                            "alerts loaded": {
+                                "name": "alerts loaded",
+                                "path": "::Compliance Dashboard::alerts loaded",
+                                "id": "0b8f14978803877e5dac95330a9d1cff",
+                                "passes": 0,
+                                "fails": 12
+                            }
+                        }
+                }
+            }
+    }
+}

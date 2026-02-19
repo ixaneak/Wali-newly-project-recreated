@@ -1,0 +1,11 @@
+# WhatsApp Business API Dependencies
+Pillow>=10.0.0
+imagehash>=4.3.1
+tenacity>=8.2.0
+httpx>=0.25.0
+
+# Meta WhatsApp API uses standard FastAPI dependencies
+# Already included in main requirements.txt:
+# - fastapi
+# - sqlalchemy
+# - pydantic
