@@ -1,0 +1,48 @@
+# Cursor AI Rules for Wali Project
+# These rules help Cursor AI maintain project organization
+
+## File Organization Rules
+
+- **NEVER create files in root directory** (except README.md, .env.example, etc.)
+- **ALWAYS use proper subdirectories:**
+  - Scripts → scripts/
+  - Documentation → docs/<category>/
+  - Data files → data/
+  - Log files → logs/
+  - Tests → tests/ or python-services/<service>/tests/
+
+## Before Creating Any File
+
+1. Check if similar file already exists (avoid duplicates)
+2. Verify the correct folder exists
+3. Follow existing naming conventions in that folder
+
+## Documentation Rules
+
+- New docs go in docs/<category>/ (architecture/, guides/, operations/, security/, development/)
+- Use kebab-case: feature-name.md not featureName.md
+- Always update docs/README.md when adding new docs
+- Include date and status in header
+
+## Code Rules
+
+- Python: Use logging, never print()
+- No debug bypass code
+- No hardcoded credentials
+- Follow existing patterns in same directory
+- Add tests for new features
+
+## Security Rules
+
+- Check PRODUCTION_SECURITY_FIXES.md before security changes
+- No TODO without TODO-PROD: prefix for production items
+- Use secure_auth.py patterns for auth code
+
+## Pre-Completion Checklist
+
+- [ ] No root-level files (unless explicitly allowed)
+- [ ] All files in proper folders
+- [ ] No duplicates created
+- [ ] Tests added
+- [ ] Docs updated
+- [ ] README indexes updated

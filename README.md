@@ -89,6 +89,9 @@ Complete documentation is available in the [`docs/`](docs/) directory:
 | [Security](docs/security/) | Security & compliance |
 | [WhatsApp](docs/whatsapp/) | WhatsApp integration |
 
+**For AI Agents:** Read [`AGENTS.md`](AGENTS.md) before making changes!  
+**For Contributors:** See [`CONTRIBUTING.md`](CONTRIBUTING.md) for guidelines.
+
 ---
 
 ## 🧪 Testing
