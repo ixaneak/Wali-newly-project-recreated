@@ -19,19 +19,26 @@ import {
     DrugInteraction
 } from './mocks/pharmacy-mocks';
 
+// Helper to get dynamic API URL for local testing on mobile devices
+const getDynamicBaseUrl = (fallbackUrl: string) => {
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        if (fallbackUrl.includes('localhost')) {
+            return fallbackUrl.replace('localhost', window.location.hostname);
+        }
+    }
+    return fallbackUrl;
+};
+
 // Base URLs for microservices
 const API_BASE_URLS = {
-    policy: (process.env.NEXT_PUBLIC_POLICY_SERVICE_URL || 'http://localhost:8000') + '/api/v1/partners',
-    payment: (process.env.NEXT_PUBLIC_PAYMENT_SERVICE_URL || 'http://localhost:8080') + '/api/v1/payments',
-    claims: (process.env.NEXT_PUBLIC_CLAIMS_SERVICE_URL || 'http://localhost:8001') + '/api/v1/partners',
-    // ... (skipping lines to avoid massive context match, will do 2 separate edits if needed, but let's try to match the block)
-
-    // Actually, I should just update the base URL definition first, then the function.
-    // Let's do the base URL first.
-    compliance: (process.env.NEXT_PUBLIC_COMPLIANCE_SERVICE_URL || 'http://localhost:8001') + '/api/v1/compliance',
-    notification: (process.env.NEXT_PUBLIC_NOTIFICATION_SERVICE_URL || 'http://localhost:8003') + '/api/v1/notification',
-    photos: (process.env.NEXT_PUBLIC_PHOTOS_SERVICE_URL || 'http://localhost:8001') + '/api/v1/photos',
-    sar: (process.env.NEXT_PUBLIC_POLICY_SERVICE_URL || 'http://localhost:8000') + '/api/v1/compliance/sar',
+    policy: getDynamicBaseUrl(process.env.NEXT_PUBLIC_POLICY_SERVICE_URL || 'http://localhost:8000') + '/api/v1/partners',
+    payment: getDynamicBaseUrl(process.env.NEXT_PUBLIC_PAYMENT_SERVICE_URL || 'http://localhost:8080') + '/api/v1/payments',
+    claims: getDynamicBaseUrl(process.env.NEXT_PUBLIC_CLAIMS_SERVICE_URL || 'http://localhost:8001') + '/api/v1/partners',
+    compliance: getDynamicBaseUrl(process.env.NEXT_PUBLIC_COMPLIANCE_SERVICE_URL || 'http://localhost:8000') + '/api/v1/compliance',
+    notification: getDynamicBaseUrl(process.env.NEXT_PUBLIC_NOTIFICATION_SERVICE_URL || 'http://localhost:8003') + '/api/v1/notification',
+    photos: getDynamicBaseUrl(process.env.NEXT_PUBLIC_PHOTOS_SERVICE_URL || 'http://localhost:8000') + '/api/v1/photos',
+    sar: getDynamicBaseUrl(process.env.NEXT_PUBLIC_POLICY_SERVICE_URL || 'http://localhost:8000') + '/api/v1/compliance/sar',
+    legal: getDynamicBaseUrl(process.env.NEXT_PUBLIC_POLICY_SERVICE_URL || 'http://localhost:8000') + '/api/legal',
 };
 
 // Helper to get the best available auth token
@@ -286,7 +293,7 @@ export const sarService = {
 // Pharmacy API - Uses X-API-Key authentication
 const createPharmacyApiClient = (): AxiosInstance => {
     const client = axios.create({
-        baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+        baseURL: getDynamicBaseUrl(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'),
         timeout: 10000,
         headers: { 'Content-Type': 'application/json' },
     });
@@ -639,7 +646,8 @@ export const paymentService = {
 export const pharmacyService = {
     login: async (email: string, password: string) => {
         // Login is public, doesn't need API key
-        const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/pharmacy/auth/login`, {
+        const baseUrl = getDynamicBaseUrl(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
+        const res = await axios.post(`${baseUrl}/api/v1/pharmacy/auth/login`, {
             email,
             password
         });
@@ -1173,7 +1181,9 @@ export const drugFormularyService = {
 // Admin API Client (separate from main API to avoid interceptor conflicts)
 const createAdminApiClient = (): AxiosInstance => {
     const client = axios.create({
-        baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+        // Use empty baseURL to leverage Next.js rewrites (proxies through frontend)
+        // This avoids CORS issues
+        baseURL: '',
         timeout: 10000,
         headers: { 'Content-Type': 'application/json' },
     });
@@ -1186,7 +1196,7 @@ const createAdminApiClient = (): AxiosInstance => {
                 .split('; ')
                 .find(row => row.startsWith('wali_auth_token='))
                 ?.split('=')[1];
-            
+
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
             }
@@ -1429,7 +1439,8 @@ export const apiService = {
     // Mobile PWA Methods - Mapped to New Services
     fetchDashboard: async () => {
         try {
-            const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/dashboard`);
+            const baseUrl = getDynamicBaseUrl(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
+            const res = await axios.get(`${baseUrl}/api/v1/dashboard`, { timeout: 3000 });
             return res.data;
         } catch (e) {
             console.warn("Fetch dashboard failed, using fallback data", e);
@@ -1481,8 +1492,10 @@ export const apiService = {
 
     fetchTransactions: async (filter: string): Promise<any[]> => {
         try {
-            const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/transactions`, {
-                params: { filter }
+            const baseUrl = getDynamicBaseUrl(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
+            const res = await axios.get(`${baseUrl}/api/v1/transactions`, {
+                params: { filter },
+                timeout: 3000
             });
             return res.data;
         } catch (e) {
@@ -1493,8 +1506,10 @@ export const apiService = {
 
     fetchNearbyPharmacies: async (lat: number, lng: number): Promise<any[]> => {
         try {
-            const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/pharmacies/nearby`, {
-                params: { lat, lng }
+            const baseUrl = getDynamicBaseUrl(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
+            const res = await axios.get(`${baseUrl}/api/v1/pharmacies/nearby`, {
+                params: { lat, lng },
+                timeout: 3000
             });
             return res.data;
         } catch (e) {
@@ -1728,3 +1743,31 @@ function generateMockAdminAnalytics(timeframe: string = '30D') {
         ]
     };
 }
+
+// ==========================================
+// LEGAL & CONFIGURATION API
+// ==========================================
+
+export interface LegalConfig {
+    rccm: string;
+    cc: string;
+    email_dpo: string;
+    artci_authorization: string;
+}
+
+export const getLegalConfig = async (): Promise<LegalConfig> => {
+    try {
+        const response = await axios.get(`${API_BASE_URLS.legal}/config`);
+        return response.data;
+    } catch (error) {
+        if (process.env.NODE_ENV === 'development') {
+            return {
+                rccm: "CI-ABJ-2023-B-12345",
+                cc: "1234567A",
+                email_dpo: "dpo@wali.ci",
+                artci_authorization: "ARTCI/2023/APP/001"
+            };
+        }
+        throw error;
+    }
+};

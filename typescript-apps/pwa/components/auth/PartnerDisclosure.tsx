@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from 'react';
-import { Shield, ChevronRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Shield, ChevronRight, Loader2 } from 'lucide-react';
+import { getLegalConfig, LegalConfig } from '@/lib/api-client';
 
 interface PartnerDisclosureProps {
     onAccept: () => void;
@@ -10,6 +11,34 @@ interface PartnerDisclosureProps {
 
 export default function PartnerDisclosure({ onAccept, onDecline }: PartnerDisclosureProps) {
     const [accepted, setAccepted] = useState(false);
+    const [config, setConfig] = useState<LegalConfig | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let mounted = true;
+        const fetchConfig = async () => {
+            try {
+                const data = await getLegalConfig();
+                if (mounted) setConfig(data);
+            } catch (err) {
+                console.error("Failed to fetch legal config:", err);
+                // Fallback handled by API client
+            } finally {
+                if (mounted) setLoading(false);
+            }
+        };
+        fetchConfig();
+        return () => { mounted = false; };
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="p-12 bg-white dark:bg-slate-900 rounded-3xl shadow-xl max-w-md mx-auto flex flex-col items-center justify-center min-h-[400px]">
+                <Loader2 className="w-10 h-10 text-emerald-600 animate-spin mb-4" />
+                <p className="text-gray-500 font-medium animate-pulse">Chargement des conditions légales...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl shadow-xl max-w-md mx-auto">
@@ -33,7 +62,11 @@ export default function PartnerDisclosure({ onAccept, onDecline }: PartnerDisclo
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                         Souscrit votre contrat, gère les risques et paie les sinistres.
                         <br />
-                        <span className="text-xs text-gray-500">(License CIMA N°12345)</span>
+                        <span className="text-xs text-gray-500 mt-2 block space-y-1">
+                            {config?.rccm && <span>RCCM: {config.rccm}<br /></span>}
+                            {config?.cc && <span>CC: {config.cc}<br /></span>}
+                            {config?.artci_authorization && <span>Autorisation ARTCI: {config.artci_authorization}</span>}
+                        </span>
                     </p>
                 </div>
 
@@ -41,9 +74,14 @@ export default function PartnerDisclosure({ onAccept, onDecline }: PartnerDisclo
                     <h3 className="font-semibold text-gray-900 dark:text-gray-200 mb-1">
                         La Plateforme : Wali
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                         Fournit la technologie pour l'adhésion et la gestion simple de votre dossier.
                     </p>
+                    {config?.email_dpo && (
+                        <p className="text-xs text-emerald-800 dark:text-emerald-400 font-medium">
+                            DPO: {config.email_dpo}
+                        </p>
+                    )}
                 </div>
             </div>
 

@@ -10,8 +10,8 @@ from typing import List, Optional
 from datetime import datetime, date
 from pydantic import BaseModel
 import uuid
-from xml.etree.ElementTree import Element, SubElement, tostring
-from xml.dom import minidom
+from defusedxml.ElementTree import Element, SubElement, tostring
+from defusedxml import minidom
 
 from app.core.database import get_db
 from app.models.financial_event import FinancialEvent

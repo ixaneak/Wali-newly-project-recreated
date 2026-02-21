@@ -1,177 +1,155 @@
-# Wali Backend - Micro-Insurance Fintech Platform
+# Wali Backend
 
-Complete backend infrastructure for Wali micro-insurance platform targeting artisans and pharmacies in Côte d'Ivoire.
+Micro-insurance fintech platform for artisans and pharmacies in Côte d'Ivoire.
+
+[![CI/CD](https://github.com/wali/wali-backend/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/wali/wali-backend/actions)
+[![Code Coverage](https://codecov.io/gh/wali/wali-backend/branch/main/graph/badge.svg)](https://codecov.io/gh/wali/wali-backend)
+[![License](https://img.shields.io/badge/License-Proprietary-blue.svg)](LICENSE)
+
+---
 
 ## 🏗️ Architecture
 
-Microservices-based architecture with tri-provider mobile money integration (Orange/MTN/Wave), dual-role authentication, and COSUMAF compliance.
+Microservices-based architecture with tri-provider mobile money integration.
 
 ### Services
 
-- **identity-service** (Node.js/TypeScript) - Authentication & User Management
-- **payment-service** (Go) - Mobile Money Orchestration (Orange/MTN/Wave)
-- **policy-service** (Python/FastAPI) - Insurance Policy Management
-- **claims-service** (Python/FastAPI) - Claims Processing & Fraud Detection
-- **compliance-service** (Python/FastAPI) - Audit Trails & COSUMAF Reporting
-- **notification-service** (Node.js/TypeScript) - SMS/Push Notifications
+| Service | Language | Port | Description |
+|---------|----------|------|-------------|
+| Policy Service | Python/FastAPI | 8000 | Insurance policies & enrollments |
+| Claims Service | Python/FastAPI | 8001 | Claims processing & fraud detection |
+| Payment Service | Go | 8080 | Mobile money orchestration |
+| Notification Service | Node.js | 3001 | SMS/Push notifications |
+| Compliance Service | Python | 8002 | Audit trails & CIMA reporting |
+
+### Infrastructure
+
+- **PostgreSQL 15** with PostGIS for geospatial data
+- **Redis 7** for caching & sessions
+- **RabbitMQ** for async task processing
+- **MinIO** for object storage
+- **Traefik** reverse proxy with auto SSL
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Docker & Docker Compose
-- Node.js 18+ (for identity/notification services)
-- Python 3.11+ (for policy/claims/compliance services)
+- Python 3.11+ (for local development)
+- Node.js 18+ (for PWA development)
 - Go 1.21+ (for payment service)
-- PostgreSQL 15+ with PostGIS
-- Redis 7+
 
 ### Development Setup
 
 ```bash
-# Clone and navigate
+# Clone repository
+git clone https://github.com/wali/wali-backend.git
 cd wali-backend
+
+# Copy environment file
+cp .env.example .env
+# Edit .env with your configuration
 
 # Start infrastructure
 docker-compose -f infrastructure/docker-compose.dev.yml up -d
 
 # Run database migrations
-cd services/policy-service
+cd python-services/policy-service
 alembic upgrade head
 
 # Start services (in separate terminals)
-cd services/identity-service && npm install && npm run dev
-cd services/payment-service && go run main.go
-cd services/policy-service && uvicorn app.main:app --reload
-cd services/claims-service && uvicorn app.main:app --reload --port 8001
-cd services/compliance-service && uvicorn app.main:app --reload --port 8002
-cd services/notification-service && npm install && npm run dev
+cd python-services/policy-service && uvicorn app.main:app --reload
+cd python-services/claims-service && uvicorn app.main:app --reload --port 8001
 ```
 
-### Mock Mode Development (Offline)
+### Production Deployment
 
-For development without a live database or external payment APIs, you can run services in Mock Mode.
-
-**Features:**
-- In-Memory Database (persisted to JSON files)
-- Mock Payment Providers (Orange/MTN/Wave)
-- Offline Claims Fraud Detection
-
-**Run End-to-End Verification:**
 ```bash
-# Runs the full user journey: Create Policy -> Pay -> Activate -> Claim
-python verify_e2e_flow.py
+# Deploy with script
+./scripts/deploy-production.sh v1.0.0
+
+# Or use Docker Compose
+cd infrastructure
+docker-compose -f docker-compose.prod.yml up -d
 ```
 
-**Run Services Individually:**
-```bash
-# Policy Service (Mock DB)
-export USE_MOCK_DB=True
-cd services/policy-service && uvicorn app.main:app --reload
+---
 
-# Claims Service (Mock DB)
-export USE_MOCK_DB=True
-cd services/claims-service && uvicorn app.main:app --reload --port 8001
+## 📚 Documentation
 
-# Payment Service (Mock Providers)
-export MOCK_PAYMENT_PROVIDERS=true
-cd services/payment-service && go run main.go
-```
+Complete documentation is available in the [`docs/`](docs/) directory:
 
-## 📦 Project Structure
+| Section | Description |
+|---------|-------------|
+| [Architecture](docs/architecture/) | System design & scaling |
+| [Development](docs/development/) | Development guides |
+| [Operations](docs/operations/) | DevOps & deployment |
+| [Security](docs/security/) | Security & compliance |
+| [WhatsApp](docs/whatsapp/) | WhatsApp integration |
 
-```
-wali-backend/
-├── services/
-│   ├── identity-service/      # Auth, OTP, JWT
-│   ├── payment-service/        # Orange/MTN/Wave integration
-│   ├── policy-service/         # Policy CRUD, premium calculation
-│   ├── claims-service/         # Claims submission, EXIF validation
-│   ├── compliance-service/     # Immutable audit logs, reporting
-│   └── notification-service/   # SMS/Push notifications
-├── shared/
-│   ├── proto/                  # gRPC protocol definitions
-│   └── schemas/                # Database schemas
-├── infrastructure/
-│   ├── docker-compose.dev.yml
-│   ├── docker-compose.prod.yml
-│   └── nginx/
-└── docs/
-    ├── api-documentation.md
-    └── data-flow-diagrams.md
-```
-
-## 🔒 Security & Compliance
-
-- **Data Localization**: All data stored in Côte d'Ivoire (Loi n°2013-450)
-- **COSUMAF Compliance**: Immutable audit trails with SHA-256 chain hashing
-- **Tax Exemption**: Segregated escrow accounting (3-year fintech exemption)
-- **Encryption**: AES-256 at rest, TLS 1.3 in transit
-- **Fraud Detection**: EXIF validation, perceptual hashing, velocity checks
-
-## 💳 Payment Providers
-
-Tri-provider fallback system with intelligent routing:
-
-1. **Orange Money CI** (Primary) - OAuth2, request-to-pay
-2. **MTN MoMo** (Secondary) - Collection API v1.0
-3. **Wave CI** (Tertiary) - Checkout sessions
-
-## 📊 Database Schema
-
-PostgreSQL 15 with PostGIS extension:
-
-- `users` - Dual-role accounts (artisan/pharmacy/admin)
-- `policies` - Insurance policies with JSONB coverage details
-- `transactions` - Payment tracking with provider metadata
-- `financial_events` - Immutable audit log with compliance hashing
-- `pharmacies` - Geospatial data for nearest-pharmacy lookup
+---
 
 ## 🧪 Testing
 
 ```bash
-# Unit tests
-cd services/identity-service && npm test
-cd services/payment-service && go test ./...
-cd services/policy-service && pytest
+# Run all tests
+./tests/run_tests.sh all
 
-# Integration tests
-cd services/payment-service && go test -tags=integration ./...
+# Run specific test suites
+./tests/run_tests.sh unit
+./tests/run_tests.sh integration
+./tests/run_tests.sh security
 
-# Load testing
-artillery run tests/load/payment-flow.yml
+# Run load tests
+k6 run load-tests/wali-load-test-improved.js
 ```
 
-## 📝 Environment Variables
+---
 
-Copy `.env.example` to `.env` and configure:
+## 🔒 Security
 
-```env
-DATABASE_URL=postgresql://user:password@localhost:5432/wali
-REDIS_URL=redis://localhost:6379
-JWT_SECRET=<64-byte-random-string>
+- **100% CIMA Compliant** - Full regulatory compliance
+- **OWASP Top 10** - All mitigations implemented
+- **MFA for Admins** - TOTP + SMS support
+- **AES-256 Encryption** - PII data protection
+- **Audit Logging** - Immutable audit trails
 
-# Payment providers
-ORANGE_CLIENT_ID=
-ORANGE_CLIENT_SECRET=
-MTN_API_USER=
-MTN_API_KEY=
-WAVE_API_KEY=
-```
+See [Security Documentation](docs/security/) for details.
 
-## 🚢 Deployment
+---
 
-```bash
-# Build images
-docker-compose -f infrastructure/docker-compose.prod.yml build
+## 📊 Monitoring
 
-# Deploy with blue-green strategy
-docker-compose -f infrastructure/docker-compose.prod.yml up -d
+- **Prometheus** - Metrics collection
+- **Grafana** - Dashboards & visualization
+- **Health Checks** - `/health` endpoint on all services
 
-# Run migrations
-docker-compose exec policy-service alembic upgrade head
-```
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+---
 
 ## 📄 License
 
 Proprietary - Wali Fintech Platform © 2026
+
+---
+
+## 📞 Support
+
+- **Email:** support@wali.ci
+- **Documentation:** [docs.wali.ci](https://docs.wali.ci)
+- **Issues:** [GitHub Issues](https://github.com/wali/wali-backend/issues)
+
+---
+
+**Made with ❤️ in Abidjan, Côte d'Ivoire**

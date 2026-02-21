@@ -254,7 +254,8 @@ def rotate_key(old_key: str, new_key: str, db_session, table_name: str, column_n
     old_cipher = Fernet(old_key.encode())
     new_cipher = Fernet(new_key.encode())
     
-    # Fetch all encrypted values
+    # Note: table_name and column_name are schema identifiers and cannot be parameterized
+    # in standard SQL. Ensure they are validated or trusted before passing them here.
     result = db_session.execute(
         text(f"SELECT id, {column_name} FROM {table_name} WHERE {column_name} IS NOT NULL")
     )

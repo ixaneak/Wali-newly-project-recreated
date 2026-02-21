@@ -1,16 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Header
-from sqlalchemy.orm import Session
+import logging
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional
-from pydantic import BaseModel, Field
-import secrets
-from passlib.context import CryptContext
-from jose import JWTError, jwt
 
+from fastapi import APIRouter, Depends, HTTPException, status, Header
+from jose import jwt
+from passlib.context import CryptContext
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.models.pharmacy import PharmacyPartner, SubscriptionStatus
 from app.models.policy import CoverageSubscription as Subscription, User
-from app.core.config import get_settings
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/v1/pharmacy",
@@ -88,35 +93,25 @@ def get_current_pharmacy(x_api_key: Optional[str] = Header(None), db: Session = 
 
 @router.post("/auth/login")
 def login(credentials: PharmacyLoginRequest, db: Session = Depends(get_db)):
-    print(f"🔔 LOGIN ATTEMPT: {credentials.email}")
+    logger.info(f"Pharmacy login attempt: {credentials.email}")
     
-    # HARDCODED BYPASS FOR DEBUGGING
-    if (credentials.email == "pharmacie@wali.com" or credentials.email == "pharmacy@wali.com") and credentials.password == "pharma1234":
-        print("✅ DEBUG: Bypassing DB for pharmacie@wali.com")
-        return {
-            "access_token": "debug_token",
-            "token_type": "bearer",
-            "business_name": "Pharmacie Debug",
-            "subscription_status": "trial",
-            "api_key": "debug_key"
-        }
-
+    # SECURITY: No debug bypass - all authentication goes through database
+    
     # 1. CHECK IF EXISTS
     try:
         pharma = db.query(PharmacyPartner).filter(PharmacyPartner.email == credentials.email).first()
-        print(f"📊 DB RESULT: {pharma}")
+        logger.debug(f"Pharmacy lookup result: {'found' if pharma else 'not found'}")
     except Exception as e:
-        print(f"❌ DB ERROR: {str(e)}")
-        # If we failed to query, maybe the table is missing as user suggested
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+        logger.error(f"Database error during pharmacy login: {str(e)}")
+        raise HTTPException(status_code=500, detail="Authentication service error")
     
-    # 2. AUTO-CREATE ONLY IF NEW (Demo/Dev mode)
+    # 2. AUTO-CREATE ONLY IF NEW (Development mode only with explicit flag)
     if not pharma:
-        # Create demo account only for specific emails
-        if credentials.email in ['pharmacie@wali.com', 'pharmacy@wali.com', 'demo@wali.com', 'pharmacie@demo.ci']:
-             print("🆕 Creating new pharmacy...")
+        # Only auto-create in development with explicit enablement
+        if (settings.environment == "development" and 
+            getattr(settings, 'allow_demo_account_creation', False) and
+            credentials.email in ['pharmacie@wali.com', 'pharmacy@wali.com', 'demo@wali.com']):
+             logger.info(f"Auto-creating demo pharmacy account: {credentials.email}")
              try:
                  pharma = PharmacyPartner(
                      email=credentials.email,
@@ -129,9 +124,11 @@ def login(credentials: PharmacyLoginRequest, db: Session = Depends(get_db)):
                  db.commit()
                  db.refresh(pharma)
              except Exception as e:
-                 print(f"❌ CREATE ERROR: {str(e)}")
-                 raise HTTPException(status_code=500, detail=f"Create Failed: {str(e)}")
+                 logger.error(f"Failed to create demo pharmacy: {str(e)}")
+                 raise HTTPException(status_code=500, detail="Account creation failed")
         else:
+            # In production, don't auto-create - require proper registration
+            logger.warning(f"Login attempt for non-existent pharmacy: {credentials.email}")
             raise HTTPException(status_code=401, detail="Email non reconnu")
     
     # 3. VERIFY PASSWORD
@@ -167,24 +164,12 @@ def login(credentials: PharmacyLoginRequest, db: Session = Depends(get_db)):
 
 @router.get("/stats")
 def get_stats(x_api_key: Optional[str] = Header(None), db: Session = Depends(get_db)):
-    """Get pharmacy dashboard stats. Supports debug_key for demo mode."""
-    print(f"📊 STATS REQUEST: api_key={x_api_key}")
+    """Get pharmacy dashboard stats."""
+    logger.debug(f"Stats request for API key: {x_api_key[:8]}..." if x_api_key else "No API key provided")
     
-    # Debug/demo mode
-    if x_api_key == "debug_key":
-        from datetime import datetime, timedelta
-        return {
-            "id": "debug-pharmacy-id",
-            "name": "Pharmacie Demo",
-            "email": "pharmacie@wali.com",
-            "subscription_status": "trial",
-            "trial_ends_at": (datetime.utcnow() + timedelta(days=14)).isoformat(),
-            "verifications_today": 12,
-            "api_quota_remaining": 488,
-            "api_key": "debug_key",
-        }
+    # SECURITY: No debug key bypass - all requests must be authenticated
     
-    # Real mode: look up pharmacy by API key
+    # Validate API key presence
     if not x_api_key:
         raise HTTPException(status_code=401, detail="Missing API Key")
     
@@ -204,23 +189,45 @@ def get_stats(x_api_key: Optional[str] = Header(None), db: Session = Depends(get
     }
 
 @router.post("/verify")
-def verify_claim(request: PharmacyVerifyRequest, pharma: PharmacyPartner = Depends(get_current_pharmacy), db: Session = Depends(get_db)):
-    # 1. Look up policy by QR token
+def verify_claim(
+    request: PharmacyVerifyRequest, 
+    pharma: PharmacyPartner = Depends(get_current_pharmacy), 
+    db: Session = Depends(get_db)
+):
+    """
+    Verify a member's coverage using QR token, member ID, or phone number.
+    
+    Returns coverage details if active, or appropriate status message if
+    coverage is inactive or expired.
+    """
+    # 1. Validate input
     if not request.qr_token:
         raise HTTPException(status_code=400, detail="QR Token required")
-        
-    subscription = db.query(Subscription).filter(Subscription.qr_token == request.qr_token).first()
     
-    # Fallback: check if it's a member ID or Phone (legacy/manual entry support)
-    if not subscription:
-        subscription = db.query(Subscription).join(User).filter(
-            (User.id == request.qr_token) | (User.phone == request.qr_token) | (Subscription.subscription_number == request.qr_token)
+    try:
+        # 2. Look up by QR token
+        subscription = db.query(Subscription).filter(
+            Subscription.qr_token == request.qr_token
         ).first()
+        
+        # 3. Fallback: check if it's a member ID or Phone
+        if not subscription:
+            subscription = db.query(Subscription).join(User).filter(
+                (User.id == request.qr_token) | 
+                (User.phone == request.qr_token) | 
+                (Subscription.subscription_number == request.qr_token)
+            ).first()
+    except Exception as e:
+        logger.error(f"Database error during coverage verification: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Verification service error"
+        )
 
     if not subscription:
         raise HTTPException(
             status_code=404, 
-            detail="Polyclinique non trouvée ou code QR invalide"
+            detail="Couverture non trouvée ou code invalide"
         )
         
     # 2. Check Status
@@ -252,6 +259,43 @@ def verify_claim(request: PharmacyVerifyRequest, pharma: PharmacyPartner = Depen
     }
 
 @router.post("/reimburse")
-def request_reimbursement(request: ReimbursementRequest, pharma: PharmacyPartner = Depends(get_current_pharmacy), db: Session = Depends(get_db)):
-    # Simple placeholder for now
-    return {"status": "requested", "message": "Reimbursement request submitted"}
+def request_reimbursement(
+    request: ReimbursementRequest, 
+    pharma: PharmacyPartner = Depends(get_current_pharmacy), 
+    db: Session = Depends(get_db)
+):
+    """
+    Submit a reimbursement request for processed medication.
+    
+    This is a placeholder endpoint - full implementation requires:
+    - Medication code validation
+    - Amount verification against coverage
+    - Receipt upload handling
+    - Partner insurer approval workflow
+    """
+    logger.info(
+        f"Reimbursement request from {pharma.business_name}: "
+        f"artisan={request.artisan_phone}, amount={request.amount}"
+    )
+    
+    # Validation
+    if request.amount <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Amount must be positive"
+        )
+    
+    # TODO-PROD: Implement full reimbursement workflow
+    # 1. Validate artisan coverage
+    # 2. Verify medication is in formulary
+    # 3. Check amount against remaining coverage
+    # 4. Create reimbursement record
+    # 5. Submit to partner insurer for approval
+    
+    return {
+        "status": "requested", 
+        "message": "Reimbursement request submitted for review",
+        "pharmacy_id": str(pharma.id),
+        "amount_requested": request.amount,
+        "estimated_processing_days": 3
+    }

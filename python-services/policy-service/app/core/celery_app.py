@@ -154,14 +154,40 @@ def _send_admin_alert(subject: str, body: str, priority: str = "NORMAL"):
     """
     Send alert to admin team.
     
-    In production, this would integrate with:
-    - SMS gateway (Orange/MTN)
-    - Email service
-    - Slack/PagerDuty
+    Integrates with:
+    - Webhook notifications (Slack/PagerDuty) via ADMIN_ALERT_WEBHOOK_URL
+    - SMS gateway via ADMIN_ALERT_PHONE
+    - Structured logging for audit trail
+    
+    For critical alerts (settlement failures), use _alert_admin_settlement_failure
+    in app/tasks/payments.py which has more robust error handling.
     """
-    # TODO: Implement actual alert sending
-    # For now, just log critically
-    logger.critical(f"ADMIN_ALERT|priority={priority}|subject={subject}|body={body[:200]}")
+    import os
+    
+    alert_payload = {
+        "level": priority,
+        "subject": subject,
+        "body": body[:500],
+        "timestamp": datetime.utcnow().isoformat(),
+        "source": "celery_worker"
+    }
+    
+    # Always log critically
+    logger.critical(f"ADMIN_ALERT|{alert_payload}")
+    
+    # Attempt webhook if configured
+    try:
+        webhook_url = os.getenv("ADMIN_ALERT_WEBHOOK_URL")
+        if webhook_url and priority in ["HIGH", "CRITICAL"]:
+            import requests
+            requests.post(
+                webhook_url,
+                json=alert_payload,
+                timeout=5,
+                headers={"Content-Type": "application/json"}
+            )
+    except Exception as e:
+        logger.error(f"Failed to send webhook alert: {e}")
 
 
 # Export for use in tasks

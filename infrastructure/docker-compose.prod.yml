@@ -1,7 +1,16 @@
+# Wali Platform - Production Docker Compose
+# 
+# Usage:
+#   docker-compose -f docker-compose.prod.yml up -d
+#   docker-compose -f docker-compose.prod.yml ps
+#   docker-compose -f docker-compose.prod.yml logs -f
+
 version: '3.8'
 
 services:
-  # ==================== Reverse Proxy ====================
+  # ═════════════════════════════════════════════════════════════════
+  # Reverse Proxy & SSL Termination
+  # ═════════════════════════════════════════════════════════════════
   traefik:
     image: traefik:v2.10
     container_name: wali-traefik
@@ -9,86 +18,143 @@ services:
       - "--api.dashboard=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.watch=true"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.letsencrypt.acme.email=admin@wali.ci"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@wali.ci}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--ping=true"
+      - "--metrics.prometheus=true"
+      - "--log.level=INFO"
+      - "--accesslog=true"
     ports:
       - "80:80"
       - "443:443"
-      - "8081:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik_certs:/letsencrypt
-    restart: unless-stopped
-
-  # ==================== PostgreSQL Primary ====================
-  postgres-primary:
-    image: postgis/postgis:15-3.3
-    container_name: wali-postgres-primary
-    environment:
-      POSTGRES_USER: wali_user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: wali
-      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
-    volumes:
-      - postgres_primary_data:/var/lib/postgresql/data
-      - ../../shared/schemas:/docker-entrypoint-initdb.d
-    command: >
-      postgres -c wal_level=replica -c max_wal_senders=3 -c max_replication_slots=3 -c hot_standby=on
     networks:
       - wali-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U wali_user" ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.wali.ci`)"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik.middlewares=auth@docker"
 
-  # ==================== PostgreSQL Replica ====================
+  # ═════════════════════════════════════════════════════════════════
+  # PostgreSQL Primary (Read-Write)
+  # ═════════════════════════════════════════════════════════════════
+  postgres-primary:
+    image: postgis/postgis:15-3.3
+    container_name: wali-postgres-primary
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wali_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-wali}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_primary_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    command: >
+      postgres 
+      -c wal_level=replica 
+      -c max_wal_senders=3 
+      -c max_replication_slots=3 
+      -c hot_standby=on
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c maintenance_work_mem=64MB
+    networks:
+      - wali-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wali_user} -d ${POSTGRES_DB:-wali}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      - "traefik.enable=false"
+
+  # ═════════════════════════════════════════════════════════════════
+  # PostgreSQL Replica (Read-Only)
+  # ═════════════════════════════════════════════════════════════════
   postgres-replica:
     image: postgis/postgis:15-3.3
     container_name: wali-postgres-replica
     environment:
-      POSTGRES_USER: wali_user
+      POSTGRES_USER: ${POSTGRES_USER:-wali_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      PGUSER: wali_user
+      PGUSER: ${POSTGRES_USER:-wali_user}
       PGPASSWORD: ${POSTGRES_PASSWORD}
     command: >
-      bash -c " until pg_basebackup -h postgres-primary -D /var/lib/postgresql/data -U wali_user -Fp -Xs -P -R; do
-        echo 'Waiting for primary to be ready...'
-        sleep 2
-      done && postgres -c hot_standby=on "
+      bash -c "
+        set -e
+        until pg_isready -h postgres-primary -U ${POSTGRES_USER:-wali_user}; do
+          echo 'Waiting for primary...'
+          sleep 2
+        done
+        rm -rf /var/lib/postgresql/data/*
+        pg_basebackup -h postgres-primary -D /var/lib/postgresql/data -U ${POSTGRES_USER:-wali_user} -Fp -Xs -P -R
+        postgres -c hot_standby=on
+      "
     depends_on:
-      - postgres-primary
+      postgres-primary:
+        condition: service_healthy
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
     networks:
       - wali-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wali_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # ==================== Redis Cluster ====================
+  # ═════════════════════════════════════════════════════════════════
+  # Redis Cluster
+  # ═════════════════════════════════════════════════════════════════
   redis:
     image: redis:7-alpine
     container_name: wali-redis
     command: >
-      redis-server --appendonly yes --appendfsync everysec --maxmemory 512mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     networks:
       - wali-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
-  # ==================== MinIO Distributed ====================
+  # ═════════════════════════════════════════════════════════════════
+  # MinIO Object Storage
+  # ═════════════════════════════════════════════════════════════════
   minio:
     image: minio/minio:latest
     container_name: wali-minio
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-wali_admin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     command: server /data --console-address ":9001"
     volumes:
@@ -97,169 +163,111 @@ services:
       - wali-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
       timeout: 20s
       retries: 3
 
-  # ==================== RabbitMQ ====================
+  # ═════════════════════════════════════════════════════════════════
+  # RabbitMQ Message Queue
+  # ═════════════════════════════════════════════════════════════════
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: wali-rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-wali}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - wali-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
-  # ==================== Policy Service ====================
+  # ═════════════════════════════════════════════════════════════════
+  # Policy Service
+  # ═════════════════════════════════════════════════════════════════
   policy-service:
     build:
-      context: ../../services/policy-service
+      context: ../python-services/policy-service
       dockerfile: Dockerfile
+      target: production
     container_name: wali-policy-service
     deploy:
       replicas: 3
       resources:
         limits:
-          cpus: '0.5'
-          memory: 512M
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
     environment:
-      DATABASE_URL: postgresql://wali_user:${POSTGRES_PASSWORD}@postgres-primary:5432/wali
-      DATABASE_REPLICA_URL: postgresql://wali_user:${POSTGRES_PASSWORD}@postgres-replica:5432/wali
+      DATABASE_URL: postgresql://${POSTGRES_USER:-wali_user}:${POSTGRES_PASSWORD}@postgres-primary:5432/${POSTGRES_DB:-wali}
+      DATABASE_REPLICA_URL: postgresql://${POSTGRES_USER:-wali_user}:${POSTGRES_PASSWORD}@postgres-replica:5432/${POSTGRES_DB:-wali}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       JWT_SECRET: ${JWT_SECRET}
-      ESCROW_BANK_ACCOUNT: ${ESCROW_BANK_ACCOUNT}
-      OPERATING_BANK_ACCOUNT: ${OPERATING_BANK_ACCOUNT}
       ENVIRONMENT: production
+      ADMIN_ALERT_WEBHOOK_URL: ${ADMIN_ALERT_WEBHOOK_URL}
+      ADMIN_ALERT_PHONE: ${ADMIN_ALERT_PHONE}
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.policy.rule=Host(`api.wali.ci`) && PathPrefix(`/api/v1/policies`)"
+      - "traefik.http.routers.policy.rule=Host(`api.wali.ci`) && PathPrefix(`/api/v1`)"
       - "traefik.http.routers.policy.entrypoints=websecure"
       - "traefik.http.routers.policy.tls.certresolver=letsencrypt"
       - "traefik.http.services.policy.loadbalancer.server.port=8000"
+      - "traefik.http.services.policy.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.policy.loadbalancer.healthcheck.interval=10s"
     depends_on:
-      - postgres-primary
-      - redis
+      postgres-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - wali-network
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    user: "1000:1000"
 
-  # ==================== Payment Service ====================
-  payment-service:
-    build:
-      context: ../../services/payment-service
-      dockerfile: Dockerfile
-    container_name: wali-payment-service
-    deploy:
-      replicas: 3
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-    environment:
-      DATABASE_URL: postgresql://wali_user:${POSTGRES_PASSWORD}@postgres-primary:5432/wali
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      PORT: "8080"
-      ORANGE_CLIENT_ID: ${ORANGE_CLIENT_ID}
-      ORANGE_CLIENT_SECRET: ${ORANGE_CLIENT_SECRET}
-      MTN_API_USER: ${MTN_API_USER}
-      MTN_API_KEY: ${MTN_API_KEY}
-      MTN_SUBSCRIPTION_KEY: ${MTN_SUBSCRIPTION_KEY}
-      MTN_TARGET_ENVIRONMENT: production
-      WAVE_API_KEY: ${WAVE_API_KEY}
-      WAVE_SECRET_KEY: ${WAVE_SECRET_KEY}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.payment.rule=Host(`api.wali.ci`) && PathPrefix(`/api/v1/payments`, `/webhooks`)"
-      - "traefik.http.routers.payment.entrypoints=websecure"
-      - "traefik.http.routers.payment.tls.certresolver=letsencrypt"
-      - "traefik.http.services.payment.loadbalancer.server.port=8080"
-    depends_on:
-      - postgres-primary
-      - redis
-      - rabbitmq
-    networks:
-      - wali-network
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    user: "1000:1000"
-
-  # ==================== Celery Worker ====================
-  celery-worker:
-    build:
-      context: ../../services/compliance-service
-      dockerfile: Dockerfile.worker
-    container_name: wali-celery-worker
-    command: celery -A app.worker worker --loglevel=info --concurrency=4
-    environment:
-      DATABASE_URL: postgresql://wali_user:${POSTGRES_PASSWORD}@postgres-primary:5432/wali
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
-    depends_on:
-      - postgres-primary
-      - redis
-      - rabbitmq
-    networks:
-      - wali-network
-    restart: unless-stopped
-
-  # ==================== Celery Beat (Scheduler) ====================
-  celery-beat:
-    build:
-      context: ../../services/compliance-service
-      dockerfile: Dockerfile.worker
-    container_name: wali-celery-beat
-    command: celery -A app.worker beat --loglevel=info
-    environment:
-      DATABASE_URL: postgresql://wali_user:${POSTGRES_PASSWORD}@postgres-primary:5432/wali
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
-    depends_on:
-      - postgres-primary
-      - redis
-      - rabbitmq
-    networks:
-      - wali-network
-    restart: unless-stopped
-
-  # ==================== Monitoring: Prometheus ====================
+  # ═════════════════════════════════════════════════════════════════
+  # Monitoring: Prometheus
+  # ═════════════════════════════════════════════════════════════════
   prometheus:
     image: prom/prometheus:latest
     container_name: wali-prometheus
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
     networks:
       - wali-network
     restart: unless-stopped
 
-  # ==================== Monitoring: Grafana ====================
+  # ═════════════════════════════════════════════════════════════════
+  # Monitoring: Grafana
+  # ═════════════════════════════════════════════════════════════════
   grafana:
     image: grafana/grafana:latest
     container_name: wali-grafana
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
       GF_SERVER_ROOT_URL: https://monitoring.wali.ci
-      TZ: Africa/Abidjan
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.grafana.rule=Host(`monitoring.wali.ci`)"
@@ -272,21 +280,27 @@ services:
       - wali-network
     restart: unless-stopped
 
+# ═══════════════════════════════════════════════════════════════════
+# Volumes
+# ═══════════════════════════════════════════════════════════════════
 volumes:
   traefik_certs:
   postgres_primary_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/encrypted/postgres_primary
+  postgres_replica_data:
+    driver: local
   redis_data:
   minio_data:
   rabbitmq_data:
   prometheus_data:
   grafana_data:
 
-
+# ═══════════════════════════════════════════════════════════════════
+# Networks
+# ═══════════════════════════════════════════════════════════════════
 networks:
   wali-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

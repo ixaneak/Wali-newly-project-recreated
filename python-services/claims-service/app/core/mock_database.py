@@ -97,7 +97,7 @@ def json_serial(obj):
 def load_db():
     import json
     import os
-    from app.models.claim import Claim, ClaimStatus, CoverageType
+    from app.models.claim import Claim, ClaimStatus
     
     global MOCK_DATA_STORE
     
@@ -135,9 +135,6 @@ def load_db():
                          # Handle Enums
                          if item_data.get("status"):
                              item_data["status"] = ClaimStatus(item_data["status"])
-                         if item_data.get("claim_type"):
-                             item_data["claim_type"] = CoverageType(item_data["claim_type"])
-                         
                          # Instantiate Claim
                          claim = Claim(**item_data)
                          MOCK_DATA_STORE["Claim"].append(claim)

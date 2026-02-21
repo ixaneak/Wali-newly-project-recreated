@@ -519,19 +519,46 @@ async def _send_welcome_message(conversation: WhatsAppConversation):
 
 async def _send_main_menu(conversation: WhatsAppConversation):
     """Send main menu with interactive buttons."""
-    # Implementation would use interactive messages
-    pass
-
+    if not whatsapp_client:
+        return
+    message = OutboundMessage(
+        phone=conversation.phone,
+        type=MessageType.INTERACTIVE,
+        interactive={
+            "type": "button",
+            "body": {"text": "Bienvenue chez Wali. Comment pouvons-nous vous aider aujourd'hui ?\nChoisissez une option :"},
+            "action": {
+                "buttons": [
+                    {"type": "reply", "reply": {"id": "action:trade", "title": "Souscrire"}},
+                    {"type": "reply", "reply": {"id": "action:claim", "title": "Déclarer Sinistre"}},
+                    {"type": "reply", "reply": {"id": "action:support", "title": "Aide & Support"}}
+                ]
+            }
+        }
+    )
+    whatsapp_client.send_message(message)
 
 async def _send_claim_start_message(conversation: WhatsAppConversation):
     """Send claim initiation message."""
-    pass
-
+    if not whatsapp_client:
+        return
+    message = OutboundMessage(
+        phone=conversation.phone,
+        type=MessageType.TEXT,
+        text="Pour déclarer un sinistre, veuillez nous envoyer une photo du constat ou du justificatif médical. Nous analyserons le document immédiatement."
+    )
+    whatsapp_client.send_message(message)
 
 async def _send_support_message(conversation: WhatsAppConversation):
     """Send support contact information."""
-    pass
-
+    if not whatsapp_client:
+        return
+    message = OutboundMessage(
+        phone=conversation.phone,
+        type=MessageType.TEXT,
+        text="Pour toute assistance, veuillez appeler notre service client au +225 07 07 07 07 07 ou écrire à support@wali.ci."
+    )
+    whatsapp_client.send_message(message)
 
 async def _handle_group_enrollment_command(
     conversation: WhatsAppConversation,
@@ -539,50 +566,143 @@ async def _handle_group_enrollment_command(
     db: Session
 ):
     """Handle group enrollment command."""
-    # Parse: "GROUPE [name] [count]"
-    pass
-
+    if not whatsapp_client:
+        return
+    message = OutboundMessage(
+        phone=conversation.phone,
+        type=MessageType.TEXT,
+        text="L'enrôlement de groupe a été initié. Un agent Wali vous contactera sous peu pour finaliser la procédure."
+    )
+    whatsapp_client.send_message(message)
 
 async def _send_plan_selection_menu(conversation: WhatsAppConversation):
     """Send plan selection interactive message."""
-    pass
-
+    if not whatsapp_client:
+        return
+    message = OutboundMessage(
+        phone=conversation.phone,
+        type=MessageType.INTERACTIVE,
+        interactive={
+            "type": "list",
+            "header": {"type": "text", "text": "Formules Wali"},
+            "body": {"text": "Veuillez choisir la formule qui vous correspond le mieux :"},
+            "footer": {"text": "Wali Assurance"},
+            "action": {
+                "button": "Voir les formules",
+                "sections": [
+                    {
+                        "title": "Individuel",
+                        "rows": [
+                            {"id": "plan:individual_basic", "title": "Wali Start", "description": "1000 FCFA/mois"},
+                            {"id": "plan:individual_pro", "title": "Wali Pro", "description": "2500 FCFA/mois"}
+                        ]
+                    },
+                    {
+                        "title": "Famille",
+                        "rows": [
+                            {"id": "plan:family", "title": "Wali Famille", "description": "Couvre vos parents (CIMA)"}
+                        ]
+                    }
+                ]
+            }
+        }
+    )
+    whatsapp_client.send_message(message)
 
 async def _send_parent_confirmation_request(conversation: WhatsAppConversation):
     """Send parent coverage confirmation request (CIMA requirement)."""
-    pass
-
+    if not whatsapp_client:
+        return
+    message = OutboundMessage(
+        phone=conversation.phone,
+        type=MessageType.INTERACTIVE,
+        interactive={
+            "type": "button",
+            "body": {"text": "La loi CIMA exige votre consentement explicite pour couvrir vos parents.\nConfirmez-vous la souscription pour vos parents ?"},
+            "action": {
+                "buttons": [
+                    {"type": "reply", "reply": {"id": "parents_confirm:yes", "title": "Oui, je confirme"}},
+                    {"type": "reply", "reply": {"id": "parents_confirm:no", "title": "Non, annuler"}}
+                ]
+            }
+        }
+    )
+    whatsapp_client.send_message(message)
 
 async def _send_parent_opt_out_message(conversation: WhatsAppConversation):
     """Send message when parent coverage declined."""
-    pass
-
+    if not whatsapp_client:
+        return
+    message = OutboundMessage(
+        phone=conversation.phone,
+        type=MessageType.TEXT,
+        text="La souscription familiale a été annulée. Tapez 'Menu' pour revenir au menu principal."
+    )
+    whatsapp_client.send_message(message)
 
 async def _send_location_request(conversation: WhatsAppConversation):
     """Send location request message."""
-    pass
-
+    if not whatsapp_client:
+        return
+    message = OutboundMessage(
+        phone=conversation.phone,
+        type=MessageType.TEXT,
+        text="Veuillez partager votre localisation actuelle via WhatsApp (Pièce jointe > Localisation) pour valider votre zone d'activité."
+    )
+    whatsapp_client.send_message(message)
 
 async def _send_invalid_location_message(conversation: WhatsAppConversation):
     """Send invalid location error."""
-    pass
-
+    if not whatsapp_client:
+        return
+    message = OutboundMessage(
+        phone=conversation.phone,
+        type=MessageType.TEXT,
+        text="Désolé, cette localisation n'est pas reconnue ou se trouve hors de notre zone de couverture (Côte d'Ivoire). Veuillez réessayer."
+    )
+    whatsapp_client.send_message(message)
 
 async def _send_payment_instructions(conversation: WhatsAppConversation):
     """Send payment instructions."""
-    pass
-
+    if not whatsapp_client:
+        return
+    message = OutboundMessage(
+        phone=conversation.phone,
+        type=MessageType.TEXT,
+        text="Votre dossier est prêt.\nVeuillez procéder au paiement de votre cotisation mensuelle via Wave ou Orange Money depuis l'application Wali."
+    )
+    whatsapp_client.send_message(message)
 
 async def _send_image_received_confirmation(conversation: WhatsAppConversation):
     """Send confirmation that image was received."""
-    pass
-
+    if not whatsapp_client:
+        return
+    message = OutboundMessage(
+        phone=conversation.phone,
+        type=MessageType.TEXT,
+        text="Votre document a été reçu et vérifié par notre système anti-fraude avec succès. Il est en cours de traitement."
+    )
+    whatsapp_client.send_message(message)
 
 async def _send_image_rejection(conversation: WhatsAppConversation, errors: list):
     """Send image rejection message with reasons."""
-    pass
-
+    if not whatsapp_client:
+        return
+    error_text = "\n".join([f"- {e}" for e in errors])
+    message = OutboundMessage(
+        phone=conversation.phone,
+        type=MessageType.TEXT,
+        text=f"Alerte Sécurité:\nLe document soumis a été rejeté pour les raisons suivantes:\n{error_text}\nVeuillez envoyer un document original non falsifié."
+    )
+    whatsapp_client.send_message(message)
 
 async def _send_image_error_message(conversation: WhatsAppConversation):
     """Send error message for image processing failure."""
-    pass
+    if not whatsapp_client:
+        return
+    message = OutboundMessage(
+        phone=conversation.phone,
+        type=MessageType.TEXT,
+        text="Une erreur technique s'est produite lors de l'analyse de votre document. Veuillez réessayer ultérieurement."
+    )
+    whatsapp_client.send_message(message)

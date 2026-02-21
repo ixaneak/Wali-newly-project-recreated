@@ -1,0 +1,21 @@
+{
+  "Policy": [
+    {
+      "user_id": "9a8244f6-6adb-4a1e-a10b-b25a324453d4",
+      "coverage_type": "health",
+      "coverage_details": {
+        "max_coverage_amount": 50000
+      },
+      "premium_amount": 4500,
+      "payment_frequency": "monthly",
+      "status": "active",
+      "id": "ad94a06d-90be-45f5-98a0-a83628db3b8a",
+      "created_at": "2026-01-27T18:27:47.446101",
+      "updated_at": "2026-01-27T18:27:47.446101",
+      "mobile_money_ref": "orange-54ca16e3-b064-423e-8c1c-d64ed2ed53c9-1769556472",
+      "start_date": "2026-01-27T18:27:53.197113",
+      "last_payment_date": "2026-01-27T18:27:53.197126",
+      "next_payment_date": "2026-02-26T18:27:53.197130"
+    }
+  ]
+}

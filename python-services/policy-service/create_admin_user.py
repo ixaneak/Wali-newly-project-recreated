@@ -14,7 +14,7 @@ def create_admin_user():
     print(f"DEBUG: create_admin_user using DB: {settings.database_url}")
     db = SessionLocal()
     try:
-        email = "admin@wali.com"
+        email = "admin@wali.ci"
         phone = "+2250700000000"
         
         # Check if exists

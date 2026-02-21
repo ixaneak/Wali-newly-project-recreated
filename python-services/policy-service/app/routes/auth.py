@@ -4,6 +4,14 @@ import httpx
 import random
 import logging
 from app.core.config import get_settings
+import os
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.core.database import get_db
+from app.models.policy import User
+from app.tasks.sync import sync_user_to_firebase
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
@@ -24,9 +32,9 @@ async def verify_recaptcha(token: str) -> float:
     
     # If no secret key is configured, warn and bypass (Dev Mode)
     # settings.recaptcha_secret_key needed
-    secret_key = "YOUR_RECAPTCHA_SECRET_KEY" # TODO: Load from env
+    secret_key = settings.recaptcha_secret_key or os.getenv("RECAPTCHA_SECRET_KEY")
     
-    if not secret_key or secret_key == "YOUR_RECAPTCHA_SECRET_KEY":
+    if not secret_key:
         logger.warning("Recaptcha secret not configured. Bypassing verification.")
         return 1.0
 
@@ -78,19 +86,31 @@ async def send_otp(data: OTPRequest):
     return {"status": "success", "message": "OTP sent"}
 
 @router.post("/verify-otp")
-async def verify_otp(phoneNumber: str, code: str):
+async def verify_otp(phoneNumber: str, code: str, db: AsyncSession = Depends(get_db)):
     stored_code = otp_store.get(phoneNumber)
     if not stored_code:
         raise HTTPException(status_code=400, detail="No OTP request found")
         
     if stored_code == code:
         # Success!
-        # Generate Firebase Custom Token here (requires firebase-admin)
-        # uid = get_or_create_user(phoneNumber)
-        # token = auth.create_custom_token(uid)
+        result = await db.execute(select(User).where(User.phone == phoneNumber))
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            user = User(
+                phone=phoneNumber,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
+            )
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+            
+        # Trigger Firebase Sync Celery Task
+        sync_user_to_firebase.delay(str(user.id), user.phone, {"role": "subscriber"})
         
         # for now return mock
         del otp_store[phoneNumber]
-        return {"status": "success", "token": "mock-custom-token-backend"}
+        return {"status": "success", "token": "mock-custom-token-backend", "user_id": str(user.id)}
         
     raise HTTPException(status_code=400, detail="Invalid code")

@@ -21,7 +21,7 @@ def create_claim():
     }
     
     try:
-        response = requests.post(f"{BASE_URL}/submit-json", json=payload)
+        response = requests.post(f"{BASE_URL}/submit-json", json=payload, timeout=10)
         print(f"Status: {response.status_code}")
         
         if response.status_code in [200, 201]:
@@ -38,7 +38,7 @@ def list_claims(claim_id=None):
     try:
         # Route is /user/{user_id}
         url = f"{BASE_URL}/user/{USER_ID}"
-        response = requests.get(url) 
+        response = requests.get(url, timeout=10)
         print(f"GET {url} Status: {response.status_code}")
         
         if response.status_code == 200:

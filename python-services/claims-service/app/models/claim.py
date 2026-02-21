@@ -5,7 +5,7 @@ IMPORTANT: Wali does NOT process insurance claims. We collect incident reports
 from artisans and forward them to the partner insurer (NSIA) for processing.
 The partner insurer makes all claim decisions and payouts.
 """
-from sqlalchemy import Column, String, Integer, DateTime, Enum, ForeignKey, Text, ARRAY
+from sqlalchemy import Column, String, Integer, Float, DateTime, Enum, ForeignKey, Text, ARRAY
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 import uuid
@@ -57,7 +57,7 @@ class IncidentReport(Base):
     review_notes = Column(Text)
 
     # Fraud detection (tech service we provide)
-    fraud_score = Column(Integer, default=0)  # 0-100 risk score
+    fraud_score = Column(Float, default=0.0)  # 0.0-1.0 risk score
     fraud_flags = Column(JSONB)  # Detailed fraud analysis
 
     # Partner processing (partner handles payout, not us)

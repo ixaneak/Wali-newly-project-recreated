@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.celery_app import celery_app, get_task_retry_config
 from app.models.claims import Claim, ClaimStatus, DataTransferLog, FraudLog
 from app.services.fraud.image_forensics import ImageDownloader, ImageForensicsService
-from app.services.whatsapp.client import WhatsAppClient
+from app.whatsapp.client import WhatsAppClient
 
 logger = logging.getLogger(__name__)
 
@@ -290,14 +290,27 @@ async def _log_data_transfer(
 async def _send_whatsapp_notification(phone: str, message: str):
     """
     Send WhatsApp notification to artisan.
-    
-    In production, this would call the WhatsApp Business API.
-    For now, we log the message.
     """
+    import os
+    from app.whatsapp.client import WhatsAppClient
+    from app.whatsapp.models import OutboundMessage, MessageType
+    
     try:
-        # TODO: Implement actual WhatsApp API call
-        # client = WhatsAppClient()
-        # await client.send_message(phone, message)
+        token = os.getenv("WHATSAPP_TOKEN")
+        phone_id = os.getenv("WHATSAPP_PHONE_ID")
+        
+        if not token or not phone_id:
+            logger.warning(f"[WhatsApp STUB] To {phone}: {message[:50]}... (Missing Credentials)")
+            return
+            
+        with WhatsAppClient(phone_number_id=phone_id, access_token=token) as client:
+            outbound = OutboundMessage(
+                phone=phone,
+                type=MessageType.TEXT,
+                text=message
+            )
+            client.send_message(outbound, track_cross_border=False)
+            
         logger.info(f"WhatsApp to {phone}: {message[:100]}...")
     except Exception as e:
         logger.error(f"Failed to send WhatsApp notification: {e}")
@@ -305,25 +318,54 @@ async def _send_whatsapp_notification(phone: str, message: str):
 
 async def _alert_admin_fraud_review(claim: Claim):
     """Alert admin when claim needs fraud review."""
-    logger.critical(
-        f"FRAUD_REVIEW_REQUIRED|"
-        f"claim_id={claim.id}|"
-        f"phone={claim.artisan_phone}|"
-        f"score={claim.fraud_score:.2f}|"
-        f"flags={claim.fraud_flags}"
-    )
-    # TODO: Send actual alert (SMS/email/Slack)
+    import os
+    import aiohttp
+    
+    alert_payload = {
+        "level": "CRITICAL",
+        "type": "FRAUD_REVIEW_REQUIRED",
+        "claim_id": str(claim.id),
+        "phone": claim.artisan_phone,
+        "score": claim.fraud_score,
+        "flags": claim.fraud_flags,
+        "action_required": "MANUAL_REVIEW_REQUIRED"
+    }
+    
+    logger.critical(f"FRAUD_REVIEW_REQUIRED: {alert_payload}")
+    
+    try:
+        admin_webhook = os.getenv("ADMIN_ALERT_WEBHOOK_URL")
+        if admin_webhook:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(admin_webhook, json=alert_payload, timeout=5):
+                    logger.info("Admin fraud alert sent via webhook")
+    except Exception as e:
+        logger.error(f"Failed to send admin fraud alert: {e}")
 
 
 async def _alert_admin_system_failure(component: str, claim_id: str, error: str):
     """Alert admin on system failure."""
-    logger.critical(
-        f"SYSTEM_FAILURE|"
-        f"component={component}|"
-        f"claim_id={claim_id}|"
-        f"error={error}"
-    )
-    # TODO: Send actual alert
+    import os
+    import aiohttp
+    
+    alert_payload = {
+        "level": "CRITICAL",
+        "type": "SYSTEM_FAILURE",
+        "component": component,
+        "claim_id": str(claim_id) if claim_id else None,
+        "error": error
+    }
+    
+    logger.critical(f"SYSTEM_FAILURE: {alert_payload}")
+    
+    try:
+        admin_webhook = os.getenv("ADMIN_ALERT_WEBHOOK_URL")
+        if admin_webhook:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(admin_webhook, json=alert_payload, timeout=5):
+                    logger.info("Admin system failure alert sent via webhook")
+    except Exception as e:
+        logger.error(f"Failed to send admin system failure alert: {e}")
 
 
 # Import tasks to register them

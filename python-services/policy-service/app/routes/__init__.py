@@ -1,1 +1,1 @@
-print("DEBUG: Importing app.routes package")
+# Package initialized

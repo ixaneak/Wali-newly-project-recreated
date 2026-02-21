@@ -127,9 +127,10 @@ def load_db():
                  MOCK_DATA_STORE.clear()
                  
                  # Reconstruct Policy objects
-                 if "Policy" in data:
-                     MOCK_DATA_STORE["Policy"] = []
-                     for item_data in data["Policy"]:
+                 if "Policy" in data or "CoverageSubscription" in data:
+                     key = "CoverageSubscription" if "CoverageSubscription" in data else "Policy"
+                     MOCK_DATA_STORE["CoverageSubscription"] = []
+                     for item_data in data[key]:
                          # Convert date strings back to datetime
                          for field in ["created_at", "updated_at", "last_payment_date", "next_payment_date", "start_date", "end_date"]:
                              if item_data.get(field):
@@ -156,7 +157,52 @@ def load_db():
                          
                          # Instantiate Policy
                          policy = Policy(**item_data)
-                         MOCK_DATA_STORE["Policy"].append(policy)
+                         MOCK_DATA_STORE["CoverageSubscription"].append(policy)
+                 
+                 # Reconstruct User objects
+                 from app.models.policy import User, UserRole, KYCStatus
+                 if "User" in data or "users" in data: # Also check "users" if it was lowercased
+                     user_key = "User" if "User" in data else "users"
+                     MOCK_DATA_STORE["User"] = []
+                     for item_data in data[user_key]:
+                         # Convert date strings back to datetime
+                         for field in ["created_at", "updated_at"]:
+                             if item_data.get(field):
+                                 try:
+                                     item_data[field] = datetime.fromisoformat(item_data[field])
+                                 except:
+                                     pass
+                         
+                         if "updated_at" in item_data:
+                             del item_data["updated_at"]
+
+                         
+                         # Handle Enums
+                         if item_data.get("role"):
+                             try:
+                                 # if it's "admin" vs "UserRole.ADMIN", map it or use Enum directly
+                                 val = item_data["role"]
+                                 if val.startswith("UserRole."):
+                                     val = val.split(".")[1].lower()
+                                 if val == "admin": item_data["role"] = UserRole.ADMIN
+                                 elif val == "artisan": item_data["role"] = UserRole.ARTISAN
+                                 elif val == "pharmacy": item_data["role"] = UserRole.PHARMACY
+                             except:
+                                 pass
+                         if item_data.get("kyc_status"):
+                             try:
+                                 val = item_data["kyc_status"]
+                                 if val.startswith("KYCStatus."):
+                                     val = val.split(".")[1].lower()
+                                 if val == "verified": item_data["kyc_status"] = KYCStatus.VERIFIED
+                                 elif val == "pending": item_data["kyc_status"] = KYCStatus.PENDING
+                                 elif val == "rejected": item_data["kyc_status"] = KYCStatus.REJECTED
+                             except:
+                                 pass
+
+                         # Instantiate User
+                         user = User(**item_data)
+                         MOCK_DATA_STORE["User"].append(user)
         except Exception as e:
             print(f"Failed to load mock db: {e}")
 

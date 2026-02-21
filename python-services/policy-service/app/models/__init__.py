@@ -6,12 +6,17 @@ from .paydunya_transaction import PaydunyaTransaction
 from .partner import Partner, PartnerInvoice, PlatformUsageLog, PartnerApiConfig
 
 from .claim import Claim
-from .pharmacy import PharmacyPartner
+from .pharmacy import PharmacyPartner, PharmacyVerification
 
 # SAR / AML Compliance
 from .sar_report import SarReport
 from .risk_event import RiskEvent
 from .compliance_list import ComplianceListEntry
+
+# Legal & Compliance Log
+from .legal import LegalConfig, LegalTemplate, DocumentType
+from .compliance import DataTransferLog
+from .user_mapping import UserMapping
 
 __all__ = [
     # Core enrollment model (was: Policy)
@@ -27,7 +32,9 @@ __all__ = [
     # Claims
     "Claim",
     # Pharmacy
-    "PharmacyPartner",
+    "PharmacyPartner", "PharmacyVerification",
     # SAR / AML Compliance
     "SarReport", "RiskEvent", "ComplianceListEntry",
+    # Identity
+    "UserMapping"
 ]

@@ -66,7 +66,7 @@ def test_orange_money():
     print("\n--- Testing Orange Money Webhook ---")
     policy_id = setup_test_policy()
     payload = {
-        "notif_token": "token123",
+        "notif_token": os.getenv("ORANGE_MONEY_NOTIF_TOKEN", "dummy_test_token"),
         "txnid": f"OM-{uuid.uuid4()}",
         "ref_id": policy_id,
         "amount": 5000,

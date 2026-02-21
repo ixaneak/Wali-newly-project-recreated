@@ -48,9 +48,9 @@ export default function BottomNav() {
                 >
                     <tab.icon
                         size={24}
-                        color={tab.active ? '#059669' : '#6B7280'}
                         strokeWidth={1.5}
-                        fill={tab.active ? '#059669' : 'none'}
+                        color={tab.active ? '#059669' : '#6B7280'}
+                        className={tab.active ? 'fill-[#059669]/20' : ''}
                     />
                     <span style={{
                         fontSize: 10,

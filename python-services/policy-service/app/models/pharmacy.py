@@ -52,3 +52,18 @@ class PharmacyPartner(Base):
             "trial_ends_at": self.trial_ends_at.isoformat() if self.trial_ends_at else None,
             "api_key": self.api_key
         }
+
+class PharmacyVerification(Base):
+    """
+    Tracks QR code verifications performed by pharmacies for security and fraud prevention.
+    """
+    __tablename__ = "pharmacy_verifications"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    pharmacy_id = Column(String(36), nullable=False, index=True)
+    policy_id = Column(String(36), nullable=False, index=True)
+    qr_token_hash = Column(String(64), nullable=False, index=True) # SHA-256 for replay attack prevention
+    verified_at = Column(DateTime(timezone=True), server_default=func.now())
+    ip_address = Column(String(50))
+    user_agent = Column(String(255))
+    status = Column(String(50), default="success") # 'success', 'failed_expired', 'failed_replay'
+

@@ -402,12 +402,27 @@ async def get_claim_details(
 
 def _generate_signed_image_url(base_url: str, expiry_seconds: int = 3600) -> str:
     """
-    Generate signed URL for image preview.
+    Generate signed URL for image preview with expiry.
     
-    In production, this would sign the Backblaze B2 URL.
-    For now, returns the base URL.
+    In production, images should be served via signed URLs
+    to prevent unauthorized access. Currently returns direct URL
+    with access controlled by API authentication.
+    
+    TODO-PROD: Implement proper URL signing with HMAC:
+        - Import secrets from config
+        - Generate signature with expiry timestamp
+        - Validate signature on image endpoint
     """
-    # TODO: Implement proper URL signing with expiry
+    # Production enhancement: Add signature parameter
+    # import hmac, hashlib, time
+    # expiry = int(time.time()) + expiry_seconds
+    # signature = hmac.new(
+    #     SECRET_KEY.encode(),
+    #     f"{base_url}:{expiry}".encode(),
+    #     hashlib.sha256
+    # ).hexdigest()
+    # return f"{base_url}?expiry={expiry}&sig={signature}"
+    
     return base_url
 
 

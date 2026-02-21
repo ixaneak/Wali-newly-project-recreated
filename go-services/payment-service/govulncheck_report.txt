@@ -1,0 +1,20 @@
+=== Symbol Results ===
+
+Vulnerability #1: GO-2026-4337
+    Unexpected session resumption in crypto/tls
+  More info: https://pkg.go.dev/vuln/GO-2026-4337
+  Standard library
+    Found in: crypto/tls@go1.25.6
+    Fixed in: crypto/tls@go1.25.7
+    Example traces found:
+      #1: main.go:121:33: wali.main calls http.Server.ListenAndServe, which eventually calls tls.Conn.HandshakeContext
+      #2: providers/orange.go:114:23: providers.OrangeMoneyProvider.RequestPayment calls io.ReadAll, which eventually calls tls.Conn.Read
+      #3: providers/orange.go:164:2: providers.OrangeMoneyProvider.VerifyPayment calls http.http2transportResponseBody.Close, which eventually calls tls.Conn.Write
+      #4: main.go:34:32: wali.main calls redis.NewClient, which eventually calls tls.DialWithDialer
+      #5: providers/orange.go:160:26: providers.OrangeMoneyProvider.VerifyPayment calls http.Client.Do, which eventually calls tls.Dialer.DialContext
+
+Your code is affected by 1 vulnerability from the Go standard library.
+This scan also found 2 vulnerabilities in packages you import and 3
+vulnerabilities in modules you require, but your code doesn't appear to call
+these vulnerabilities.
+Use '-show verbose' for more details.

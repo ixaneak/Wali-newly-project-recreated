@@ -26,7 +26,7 @@ def main():
         res = requests.post(f"{BASE_URL}/auth/login", json={
             "email": EMAIL,
             "password": PASSWORD
-        })
+        }, timeout=10)
         if res.status_code == 200:
             data = res.json()
             token = data.get("access_token")
@@ -44,7 +44,7 @@ def main():
     print_step("Fetching Pharmacy Stats...")
     headers = {"X-API-Key": api_key}
     try:
-        res = requests.get(f"{BASE_URL}/stats", headers=headers)
+        res = requests.get(f"{BASE_URL}/stats", headers=headers, timeout=10)
         if res.status_code == 200:
             stats = res.json()
             print_success("Stats Fetched")
@@ -60,7 +60,7 @@ def main():
     try:
         res = requests.post(f"{BASE_URL}/verify-coverage", json={
             "qr_token": "0707070701:POL-123"
-        }, headers=headers)
+        }, headers=headers, timeout=10)
         
         if res.status_code == 200:
             data = res.json()
@@ -80,7 +80,7 @@ def main():
     try:
         res = requests.post(f"{BASE_URL}/verify-coverage", json={
             "qr_token": "0707070700:POL-INVALID" # Ends with 00 -> Inactive
-        }, headers=headers)
+        }, headers=headers, timeout=10)
         
         if res.status_code == 200:
             data = res.json()

@@ -30,6 +30,9 @@ export const metadata = {
         title: "Wali - L'assurance des artisans",
         description: 'Protegez-vous simplement avec Wali.',
     },
+    other: {
+        google: 'notranslate'
+    }
 }
 
 // Separate viewport export (Next.js 14+ best practice)
@@ -47,9 +50,6 @@ export default function RootLayout({
 }) {
     return (
         <html lang="fr" translate="no" className="notranslate" suppressHydrationWarning>
-            <head>
-                <meta name="google" content="notranslate" />
-            </head>
             <body>
                 <ThemeProvider
                     attribute="class"

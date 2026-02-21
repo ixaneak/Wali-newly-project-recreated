@@ -7,8 +7,8 @@ Reports must be filed within 30 days of detection per CIMA requirements.
 from datetime import datetime
 from typing import Optional
 import logging
-from xml.etree.ElementTree import Element, SubElement, tostring
-from xml.dom.minidom import parseString
+from defusedxml.ElementTree import Element, SubElement, tostring
+from defusedxml.minidom import parseString
 
 from sqlalchemy.orm import Session
 from app.models.sar_report import SarReport

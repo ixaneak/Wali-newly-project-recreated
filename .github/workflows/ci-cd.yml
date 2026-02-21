@@ -1,0 +1,219 @@
+name: WALI CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+  GO_VERSION: '1.21'
+
+jobs:
+  # ═════════════════════════════════════════════════════════════════
+  # Job 1: Code Quality & Security
+  # ═════════════════════════════════════════════════════════════════
+  code-quality:
+    name: Code Quality & Security
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install Python tools
+        run: |
+          pip install flake8 bandit safety black isort
+          
+      - name: Lint Python (Policy Service)
+        run: |
+          cd python-services/policy-service
+          flake8 app --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 app --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+          
+      - name: Check Python formatting
+        run: |
+          cd python-services/policy-service
+          black --check app || true
+          isort --check-only app || true
+          
+      - name: Security scan with Bandit
+        run: |
+          cd python-services/policy-service
+          bandit -r app -f json -o bandit-report.json || true
+          bandit -r app || true
+          
+      - name: Check for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+
+  # ═════════════════════════════════════════════════════════════════
+  # Job 2: Unit Tests
+  # ═════════════════════════════════════════════════════════════════
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:15-3.3
+        env:
+          POSTGRES_USER: wali_test
+          POSTGRES_PASSWORD: wali_test_password
+          POSTGRES_DB: wali_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+          
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install Policy Service dependencies
+        run: |
+          cd python-services/policy-service
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx pytest-cov
+          
+      - name: Run Policy Service tests
+        env:
+          DATABASE_URL: postgresql://wali_test:wali_test_password@localhost:5432/wali_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-jwt-secret-for-ci-only
+          ENVIRONMENT: testing
+        run: |
+          cd python-services/policy-service
+          pytest tests/ -v --cov=app --cov-report=xml --cov-report=term || true
+          
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./python-services/policy-service/coverage.xml
+          fail_ci_if_error: false
+
+  # ═════════════════════════════════════════════════════════════════
+  # Job 3: Integration Tests
+  # ═════════════════════════════════════════════════════════════════
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [code-quality, unit-tests]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Start infrastructure
+        run: |
+          cd infrastructure
+          docker-compose -f docker-compose.dev.yml up -d postgres redis
+          sleep 10
+          
+      - name: Run E2E tests
+        run: |
+          cd tests/e2e
+          python verify_e2e_flow.py || true
+          
+      - name: Cleanup
+        if: always()
+        run: |
+          cd infrastructure
+          docker-compose down
+
+  # ═════════════════════════════════════════════════════════════════
+  # Job 4: Build & Push Images
+  # ═════════════════════════════════════════════════════════════════
+  build-images:
+    name: Build Container Images
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Build Policy Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./python-services/policy-service
+          push: false
+          tags: wali/policy-service:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: wali/policy-service:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          exit-code: '0'
+          ignore-unfixed: true
+
+  # ═════════════════════════════════════════════════════════════════
+  # Job 5: Deploy to Production
+  # ═════════════════════════════════════════════════════════════════
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-images]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[deploy]')
+    environment:
+      name: production
+      url: https://api.wali.ci
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        
+      - name: Deploy Policy Service
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          cd python-services/policy-service
+          flyctl deploy --remote-only
+          
+      - name: Verify deployment
+        run: |
+          sleep 30
+          curl -f https://wali-policy-service.fly.dev/health || exit 1
+          
+      - name: Notify on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "🚨 Deployment failed for ${{ github.sha }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

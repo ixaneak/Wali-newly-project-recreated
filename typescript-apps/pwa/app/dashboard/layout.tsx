@@ -1,7 +1,6 @@
 "use client";
 
 import BottomNav from '@/components/mobile/BottomNav';
-import { Toaster } from 'sonner';
 
 export default function DashboardLayout({
     children,
@@ -14,7 +13,6 @@ export default function DashboardLayout({
                 {children}
                 <BottomNav />
             </div>
-            <Toaster position="top-center" />
         </div>
     );
 }

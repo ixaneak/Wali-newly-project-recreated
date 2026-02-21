@@ -1,0 +1,985 @@
+Run started:2026-02-20 18:43:27.080092+00:00
+
+Test results:
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b608_hardcoded_sql_expressions.html
+   Location: .\claims-service\app\core\encryption.py:259:15
+258	    result = db_session.execute(
+259	        text(f"SELECT id, {column_name} FROM {table_name} WHERE {column_name} IS NOT NULL")
+260	    )
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b608_hardcoded_sql_expressions.html
+   Location: .\claims-service\app\core\encryption.py:272:23
+271	            db_session.execute(
+272	                text(f"UPDATE {table_name} SET {column_name} = :val WHERE id = :id"),
+273	                {"val": reencrypted, "id": row[0]}
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\claims-service\app\core\mock_database.py:47:12
+46	                          ]
+47	            except Exception:
+48	                pass
+49	
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\claims-service\app\core\mock_database.py:68:8
+67	             self.items.sort(key=lambda x: x.created_at, reverse=True)
+68	        except:
+69	             pass
+70	        return self
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\claims-service\app\core\mock_database.py:124:33
+123	                                     item_data[field] = datetime.fromisoformat(item_data[field])
+124	                                 except:
+125	                                     pass
+126	                         
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\claims-service\app\core\mock_database.py:132:33
+131	                                     item_data[field] = uuid.UUID(item_data[field])
+132	                                 except:
+133	                                     pass
+134	
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'True'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\claims-service\app\core\security_middleware.py:117:16
+116	                "exp": decoded_token.get("exp"),
+117	                "firebase_token": True,
+118	            }
+119	            return payload
+120	        except ValueError:
+121	            pass  # Token format invalid, try local
+122	        except Exception as e:
+123	            if "Token expired" in str(e):
+124	                raise HTTPException(status_code=401, detail="Token has expired")
+125	            pass  # Fall through to local JWT
+126	
+
+--------------------------------------------------
+>> Issue: [B113:request_without_timeout] Call to requests without timeout
+   Severity: Medium   Confidence: Low
+   CWE: CWE-400 (https://cwe.mitre.org/data/definitions/400.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b113_request_without_timeout.html
+   Location: .\claims-service\verify_claims_api.py:24:19
+23	    try:
+24	        response = requests.post(f"{BASE_URL}/submit-json", json=payload)
+25	        print(f"Status: {response.status_code}")
+
+--------------------------------------------------
+>> Issue: [B113:request_without_timeout] Call to requests without timeout
+   Severity: Medium   Confidence: Low
+   CWE: CWE-400 (https://cwe.mitre.org/data/definitions/400.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b113_request_without_timeout.html
+   Location: .\claims-service\verify_claims_api.py:41:19
+40	        url = f"{BASE_URL}/user/{USER_ID}"
+41	        response = requests.get(url) 
+42	        print(f"GET {url} Status: {response.status_code}")
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b608_hardcoded_sql_expressions.html
+   Location: .\claims-service\verify_claims_db.py:14:30
+13	def check_table(table_name):
+14	    exists = cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'").fetchone()
+15	    if exists:
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b608_hardcoded_sql_expressions.html
+   Location: .\claims-service\verify_claims_db.py:16:33
+15	    if exists:
+16	        count = cursor.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
+17	        print(f"✅ {table_name} exists (Rows: {count})")
+
+--------------------------------------------------
+>> Issue: [B104:hardcoded_bind_all_interfaces] Possible binding to all interfaces.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-605 (https://cwe.mitre.org/data/definitions/605.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b104_hardcoded_bind_all_interfaces.html
+   Location: .\compliance-service\app\main.py:197:37
+196	    import uvicorn
+197	    uvicorn.run("app.main:app", host="0.0.0.0", port=8002, reload=True)
+
+--------------------------------------------------
+>> Issue: [B405:blacklist] Using Element to parse untrusted XML data is known to be vulnerable to XML attacks. Replace Element with the equivalent defusedxml package, or make sure defusedxml.defuse_stdlib() is called.
+   Severity: Low   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_imports.html#b405-import-xml-etree
+   Location: .\compliance-service\app\routes\compliance.py:13:0
+12	import uuid
+13	from xml.etree.ElementTree import Element, SubElement, tostring
+14	from xml.dom import minidom
+
+--------------------------------------------------
+>> Issue: [B408:blacklist] Using minidom to parse untrusted XML data is known to be vulnerable to XML attacks. Replace minidom with the equivalent defusedxml package, or make sure defusedxml.defuse_stdlib() is called.
+   Severity: Low   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_imports.html#b408-import-xml-minidom
+   Location: .\compliance-service\app\routes\compliance.py:14:0
+13	from xml.etree.ElementTree import Element, SubElement, tostring
+14	from xml.dom import minidom
+15	
+
+--------------------------------------------------
+>> Issue: [B318:blacklist] Using xml.dom.minidom.parseString to parse untrusted XML data is known to be vulnerable to XML attacks. Replace xml.dom.minidom.parseString with its defusedxml equivalent function or make sure defusedxml.defuse_stdlib() is called
+   Severity: Medium   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_calls.html#b313-b320-xml-bad-minidom
+   Location: .\compliance-service\app\routes\compliance.py:264:14
+263	
+264	    xml_str = minidom.parseString(tostring(root)).toprettyxml(indent="  ")
+265	    return {"xml_content": xml_str, "status": "generated", "platform_model": "B2B_SAAS"}
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'token123'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\payment-gateway-service\verification_script.py:69:8
+68	    payload = {
+69	        "notif_token": "token123",
+70	        "txnid": f"OM-{uuid.uuid4()}",
+71	        "ref_id": policy_id,
+72	        "amount": 5000,
+73	        "status": "SUCCESS"
+74	    }
+75	    response = client.post("/webhooks/orange-money", json=payload)
+76	    print(f"Response: {response.status_code} {response.json()}")
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b608_hardcoded_sql_expressions.html
+   Location: .\policy-service\app\core\encryption.py:259:15
+258	    result = db_session.execute(
+259	        text(f"SELECT id, {column_name} FROM {table_name} WHERE {column_name} IS NOT NULL")
+260	    )
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b608_hardcoded_sql_expressions.html
+   Location: .\policy-service\app\core\encryption.py:272:23
+271	            db_session.execute(
+272	                text(f"UPDATE {table_name} SET {column_name} = :val WHERE id = :id"),
+273	                {"val": reencrypted, "id": row[0]}
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\policy-service\app\core\mock_database.py:54:12
+53	                          ]
+54	            except Exception:
+55	                pass
+56	                
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\policy-service\app\core\mock_database.py:76:8
+75	             self.items.sort(key=lambda x: x.created_at, reverse=True)
+76	        except:
+77	             pass
+78	        return self
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\policy-service\app\core\mock_database.py:139:33
+138	                                     item_data[field] = datetime.fromisoformat(item_data[field])
+139	                                 except:
+140	                                     pass
+141	                         
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\policy-service\app\core\mock_database.py:147:25
+146	                             # item_data["user_id"] = uuid.UUID(item_data["user_id"])
+147	                         except:
+148	                             pass
+149	                             
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\policy-service\app\core\mock_database.py:173:33
+172	                                     item_data[field] = datetime.fromisoformat(item_data[field])
+173	                                 except:
+174	                                     pass
+175	                         
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\policy-service\app\core\mock_database.py:190:29
+189	                                 elif val == "pharmacy": item_data["role"] = UserRole.PHARMACY
+190	                             except:
+191	                                 pass
+192	                         if item_data.get("kyc_status"):
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\policy-service\app\core\mock_database.py:200:29
+199	                                 elif val == "rejected": item_data["kyc_status"] = KYCStatus.REJECTED
+200	                             except:
+201	                                 pass
+202	
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'mock-custom-token-backend'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\app\core\security_middleware_BAK.py:117:16
+116	    # In production, this block is skipped, and the token is subjected to real verification.
+117	    if token == "mock-custom-token-backend":
+118	        if settings.environment != 'development':
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'True'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\app\core\security_middleware_BAK.py:147:16
+146	                "exp": decoded_token.get("exp"),
+147	                "firebase_token": True
+148	            }
+149	            return payload
+150	
+151	        except ValueError as e:
+152	            # Token format invalid
+153	             pass
+154	        except Exception as e:
+155	            # Expired or invalid signature
+156	            # We let it fall through to local check ONLY in DEV/TEST
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'mock-custom-token-backend'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\app\core\security_middleware_v2.py:111:16
+110	    # In production, this block is skipped, and the token is subjected to real verification.
+111	    if token == "mock-custom-token-backend":
+112	        if settings.environment != 'development':
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'True'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\app\core\security_middleware_v2.py:141:16
+140	                "exp": decoded_token.get("exp"),
+141	                "firebase_token": True
+142	            }
+143	            return payload
+144	
+145	        except ValueError as e:
+146	            # Token format invalid
+147	             pass
+148	        except Exception as e:
+149	            # Expired or invalid signature
+150	            # We let it fall through to local check ONLY in DEV/TEST
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\policy-service\app\dependencies\security.py:184:8
+183	            artisan_phone = body.get("artisan_phone")
+184	        except:
+185	            pass
+186	    
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'pass'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\app\models\claims.py:66:11
+65	    """Result of fraud check."""
+66	    PASS = "pass"
+67	    FAIL = "fail"
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'bearer'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\app\routes\admin_auth.py:49:8
+48	        "access_token": access_token,
+49	        "token_type": "bearer",
+50	        "user": {
+51	            "id": user.id,
+52	            "email": user.email,
+53	            "name": user.name,
+54	            "role": user.role
+55	        }
+56	    }
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'YOUR_RECAPTCHA_SECRET_KEY'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\app\routes\auth.py:27:17
+26	    # settings.recaptcha_secret_key needed
+27	    secret_key = "YOUR_RECAPTCHA_SECRET_KEY" # TODO: Load from env
+28	    
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'YOUR_RECAPTCHA_SECRET_KEY'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\app\routes\auth.py:29:39
+28	    
+29	    if not secret_key or secret_key == "YOUR_RECAPTCHA_SECRET_KEY":
+30	        logger.warning("Recaptcha secret not configured. Bypassing verification.")
+
+--------------------------------------------------
+>> Issue: [B311:blacklist] Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+   Severity: Low   Confidence: High
+   CWE: CWE-330 (https://cwe.mitre.org/data/definitions/330.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_calls.html#b311-random
+   Location: .\policy-service\app\routes\auth.py:66:22
+65	    else:
+66	        otp_code = f"{random.randint(0, 999999):06d}"
+67	    
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'mock-custom-token-backend'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\app\routes\auth.py:94:37
+93	        del otp_store[phoneNumber]
+94	        return {"status": "success", "token": "mock-custom-token-backend"}
+95	        
+
+--------------------------------------------------
+>> Issue: [B405:blacklist] Using Element to parse untrusted XML data is known to be vulnerable to XML attacks. Replace Element with the equivalent defusedxml package, or make sure defusedxml.defuse_stdlib() is called.
+   Severity: Low   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_imports.html#b405-import-xml-etree
+   Location: .\policy-service\app\routes\compliance.py:14:0
+13	import hashlib
+14	from xml.etree.ElementTree import Element, SubElement, tostring
+15	from xml.dom import minidom
+
+--------------------------------------------------
+>> Issue: [B408:blacklist] Using minidom to parse untrusted XML data is known to be vulnerable to XML attacks. Replace minidom with the equivalent defusedxml package, or make sure defusedxml.defuse_stdlib() is called.
+   Severity: Low   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_imports.html#b408-import-xml-minidom
+   Location: .\policy-service\app\routes\compliance.py:15:0
+14	from xml.etree.ElementTree import Element, SubElement, tostring
+15	from xml.dom import minidom
+16	from sqlalchemy import func
+
+--------------------------------------------------
+>> Issue: [B318:blacklist] Using xml.dom.minidom.parseString to parse untrusted XML data is known to be vulnerable to XML attacks. Replace xml.dom.minidom.parseString with its defusedxml equivalent function or make sure defusedxml.defuse_stdlib() is called
+   Severity: Medium   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_calls.html#b313-b320-xml-bad-minidom
+   Location: .\policy-service\app\routes\compliance.py:290:14
+289	
+290	    xml_str = minidom.parseString(tostring(root)).toprettyxml(indent="  ")
+291	    return {"xml_content": xml_str, "status": "generated", "platform_model": BUSINESS_MODEL}
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'pharma1234'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\app\routes\pharmacy.py:94:123
+93	    # HARDCODED BYPASS FOR DEBUGGING
+94	    if (credentials.email == "pharmacie@wali.com" or credentials.email == "pharmacy@wali.com") and credentials.password == "pharma1234":
+95	        print("✅ DEBUG: Bypassing DB for pharmacie@wali.com")
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'debug_token'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\app\routes\pharmacy.py:97:12
+96	        return {
+97	            "access_token": "debug_token",
+98	            "token_type": "bearer",
+99	            "business_name": "Pharmacie Debug",
+100	            "subscription_status": "trial",
+101	            "api_key": "debug_key"
+102	        }
+103	
+104	    # 1. CHECK IF EXISTS
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'bearer'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\app\routes\pharmacy.py:98:12
+97	            "access_token": "debug_token",
+98	            "token_type": "bearer",
+99	            "business_name": "Pharmacie Debug",
+100	            "subscription_status": "trial",
+101	            "api_key": "debug_key"
+102	        }
+103	
+104	    # 1. CHECK IF EXISTS
+105	    try:
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'bearer'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\app\routes\pharmacy.py:162:8
+161	        "access_token": access_token, 
+162	        "token_type": "bearer",
+163	        "business_name": pharma.business_name,
+164	        "subscription_status": pharma.subscription_status.value,
+165	        "api_key": pharma.api_key
+166	    }
+167	
+168	@router.get("/stats")
+169	def get_stats(x_api_key: Optional[str] = Header(None), db: Session = Depends(get_db)):
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\policy-service\app\routes\photos.py:34:0
+33	        CLOUDINARY_ENABLED = True
+34	except Exception:
+35	    pass
+36	
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\policy-service\app\services\pdf_service.py:52:12
+51	                start_date = dt.strftime("%Y-%m-%d")
+52	            except:
+53	                pass
+54	    
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\policy-service\app\services\sar_detection_engine.py:582:16
+581	                        ))
+582	                except Exception:
+583	                    pass
+584	            
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\policy-service\app\services\sar_detection_engine.py:729:8
+728	            
+729	        except Exception:
+730	            pass
+731	        
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\policy-service\app\services\sar_detection_engine.py:848:16
+847	                        )
+848	                except Exception:
+849	                    pass
+850	        
+
+--------------------------------------------------
+>> Issue: [B405:blacklist] Using xml.etree.ElementTree to parse untrusted XML data is known to be vulnerable to XML attacks. Replace xml.etree.ElementTree with the equivalent defusedxml package, or make sure defusedxml.defuse_stdlib() is called.
+   Severity: Low   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_imports.html#b405-import-xml-etree
+   Location: .\policy-service\app\services\tracfin_export.py:12:0
+11	from typing import List, Optional
+12	import xml.etree.ElementTree as ET
+13	from xml.dom import minidom
+
+--------------------------------------------------
+>> Issue: [B408:blacklist] Using minidom to parse untrusted XML data is known to be vulnerable to XML attacks. Replace minidom with the equivalent defusedxml package, or make sure defusedxml.defuse_stdlib() is called.
+   Severity: Low   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_imports.html#b408-import-xml-minidom
+   Location: .\policy-service\app\services\tracfin_export.py:13:0
+12	import xml.etree.ElementTree as ET
+13	from xml.dom import minidom
+14	
+
+--------------------------------------------------
+>> Issue: [B318:blacklist] Using xml.dom.minidom.parseString to parse untrusted XML data is known to be vulnerable to XML attacks. Replace xml.dom.minidom.parseString with its defusedxml equivalent function or make sure defusedxml.defuse_stdlib() is called
+   Severity: Medium   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_calls.html#b313-b320-xml-bad-minidom
+   Location: .\policy-service\app\services\tracfin_export.py:178:15
+177	    rough_string = ET.tostring(root, encoding='unicode')
+178	    reparsed = minidom.parseString(rough_string)
+179	    
+
+--------------------------------------------------
+>> Issue: [B314:blacklist] Using xml.etree.ElementTree.fromstring to parse untrusted XML data is known to be vulnerable to XML attacks. Replace xml.etree.ElementTree.fromstring with its defusedxml equivalent function or make sure defusedxml.defuse_stdlib() is called
+   Severity: Medium   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_calls.html#b313-b320-xml-bad-elementtree
+   Location: .\policy-service\app\services\tracfin_export.py:210:15
+209	    try:
+210	        root = ET.fromstring(xml_string)
+211	    except ET.ParseError as e:
+
+--------------------------------------------------
+>> Issue: [B314:blacklist] Using xml.etree.ElementTree.fromstring to parse untrusted XML data is known to be vulnerable to XML attacks. Replace xml.etree.ElementTree.fromstring with its defusedxml equivalent function or make sure defusedxml.defuse_stdlib() is called
+   Severity: Medium   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_calls.html#b313-b320-xml-bad-elementtree
+   Location: .\policy-service\app\services\tracfin_export.py:286:26
+285	        # Parse and append
+286	        individual_root = ET.fromstring(individual_xml)
+287	        reports_elem.append(individual_root)
+
+--------------------------------------------------
+>> Issue: [B318:blacklist] Using xml.dom.minidom.parseString to parse untrusted XML data is known to be vulnerable to XML attacks. Replace xml.dom.minidom.parseString with its defusedxml equivalent function or make sure defusedxml.defuse_stdlib() is called
+   Severity: Medium   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_calls.html#b313-b320-xml-bad-minidom
+   Location: .\policy-service\app\services\tracfin_export.py:291:15
+290	    rough_string = ET.tostring(root, encoding='unicode')
+291	    reparsed = minidom.parseString(rough_string)
+292	    formatted = reparsed.toprettyxml(indent="    ")
+
+--------------------------------------------------
+>> Issue: [B405:blacklist] Using Element to parse untrusted XML data is known to be vulnerable to XML attacks. Replace Element with the equivalent defusedxml package, or make sure defusedxml.defuse_stdlib() is called.
+   Severity: Low   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_imports.html#b405-import-xml-etree
+   Location: .\policy-service\app\services\tracfin_service.py:10:0
+9	import logging
+10	from xml.etree.ElementTree import Element, SubElement, tostring
+11	from xml.dom.minidom import parseString
+
+--------------------------------------------------
+>> Issue: [B408:blacklist] Using parseString to parse untrusted XML data is known to be vulnerable to XML attacks. Replace parseString with the equivalent defusedxml package, or make sure defusedxml.defuse_stdlib() is called.
+   Severity: Low   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_imports.html#b408-import-xml-minidom
+   Location: .\policy-service\app\services\tracfin_service.py:11:0
+10	from xml.etree.ElementTree import Element, SubElement, tostring
+11	from xml.dom.minidom import parseString
+12	
+
+--------------------------------------------------
+>> Issue: [B318:blacklist] Using xml.dom.minidom.parseString to parse untrusted XML data is known to be vulnerable to XML attacks. Replace xml.dom.minidom.parseString with its defusedxml equivalent function or make sure defusedxml.defuse_stdlib() is called
+   Severity: Medium   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_calls.html#b313-b320-xml-bad-minidom
+   Location: .\policy-service\app\services\tracfin_service.py:102:10
+101	    rough = tostring(root, encoding="unicode")
+102	    dom = parseString(rough)
+103	    return dom.toprettyxml(indent="  ", encoding=None)
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\policy-service\app\tasks\claims.py:218:16
+217	                        await db.commit()
+218	                except:
+219	                    pass
+220	                
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\policy-service\app\tasks\payments.py:205:12
+204	                    await _alert_admin_settlement_failure(claim, "Timeout")
+205	            except:
+206	                pass
+207	            raise
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b110_try_except_pass.html
+   Location: .\policy-service\app\tasks\payments.py:221:12
+220	                    await _alert_admin_settlement_failure(claim, "Max retries exceeded")
+221	            except:
+222	                pass
+223	            
+
+--------------------------------------------------
+>> Issue: [B311:blacklist] Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+   Severity: Low   Confidence: High
+   CWE: CWE-330 (https://cwe.mitre.org/data/definitions/330.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/blacklists/blacklist_calls.html#b311-random
+   Location: .\policy-service\app\whatsapp\service.py:406:27
+405	        while True:
+406	            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+407	            
+
+--------------------------------------------------
+>> Issue: [B108:hardcoded_tmp_directory] Probable insecure usage of temp file/directory.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-377 (https://cwe.mitre.org/data/definitions/377.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b108_hardcoded_tmp_directory.html
+   Location: .\policy-service\app\whatsapp\service.py:772:26
+771	            # 1. Download from Meta CDN
+772	            temp_path = f"/tmp/{media_id}_{uuid4()}.jpg"
+773	            downloaded_path = self.client.download_media(media_id, temp_path)
+
+--------------------------------------------------
+>> Issue: [B104:hardcoded_bind_all_interfaces] Possible binding to all interfaces.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-605 (https://cwe.mitre.org/data/definitions/605.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b104_hardcoded_bind_all_interfaces.html
+   Location: .\policy-service\dev\mock_partner.py:108:26
+107	    import uvicorn
+108	    uvicorn.run(app, host="0.0.0.0", port=8008)
+
+--------------------------------------------------
+>> Issue: [B112:try_except_continue] Try, Except, Continue detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b112_try_except_continue.html
+   Location: .\policy-service\read_log.py:14:8
+13	                break
+14	        except Exception:
+15	            continue
+16	            
+
+--------------------------------------------------
+>> Issue: [B112:try_except_continue] Try, Except, Continue detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b112_try_except_continue.html
+   Location: .\policy-service\read_log_full.py:14:8
+13	                break
+14	        except Exception:
+15	            continue
+16	            
+
+--------------------------------------------------
+>> Issue: [B112:try_except_continue] Try, Except, Continue detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b112_try_except_continue.html
+   Location: .\policy-service\read_log_v10.py:14:8
+13	                break
+14	        except Exception:
+15	            continue
+16	            
+
+--------------------------------------------------
+>> Issue: [B112:try_except_continue] Try, Except, Continue detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b112_try_except_continue.html
+   Location: .\policy-service\read_log_v11.py:14:8
+13	                break
+14	        except Exception:
+15	            continue
+16	            
+
+--------------------------------------------------
+>> Issue: [B112:try_except_continue] Try, Except, Continue detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b112_try_except_continue.html
+   Location: .\policy-service\read_log_v12.py:14:8
+13	                break
+14	        except Exception:
+15	            continue
+16	            
+
+--------------------------------------------------
+>> Issue: [B112:try_except_continue] Try, Except, Continue detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b112_try_except_continue.html
+   Location: .\policy-service\read_log_v14.py:14:8
+13	                break
+14	        except Exception:
+15	            continue
+16	            
+
+--------------------------------------------------
+>> Issue: [B112:try_except_continue] Try, Except, Continue detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b112_try_except_continue.html
+   Location: .\policy-service\read_log_v6.py:14:8
+13	                break
+14	        except Exception:
+15	            continue
+16	            
+
+--------------------------------------------------
+>> Issue: [B112:try_except_continue] Try, Except, Continue detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b112_try_except_continue.html
+   Location: .\policy-service\read_log_v7.py:14:8
+13	                break
+14	        except Exception:
+15	            continue
+16	            
+
+--------------------------------------------------
+>> Issue: [B112:try_except_continue] Try, Except, Continue detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b112_try_except_continue.html
+   Location: .\policy-service\read_log_v8.py:14:8
+13	                break
+14	        except Exception:
+15	            continue
+16	            
+
+--------------------------------------------------
+>> Issue: [B112:try_except_continue] Try, Except, Continue detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b112_try_except_continue.html
+   Location: .\policy-service\read_log_v9.py:14:8
+13	                break
+14	        except Exception:
+15	            continue
+16	            
+
+--------------------------------------------------
+>> Issue: [B112:try_except_continue] Try, Except, Continue detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b112_try_except_continue.html
+   Location: .\policy-service\read_log_verify.py:14:8
+13	                break
+14	        except Exception:
+15	            continue
+16	            
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'pharma1234'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\test_login_debug.py:7:42
+6	headers = {"Content-Type": "application/json"}
+7	payload = {"email": "pharmacie@wali.com", "password": "pharma1234"}
+8	
+
+--------------------------------------------------
+>> Issue: [B113:request_without_timeout] Call to requests without timeout
+   Severity: Medium   Confidence: Low
+   CWE: CWE-400 (https://cwe.mitre.org/data/definitions/400.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b113_request_without_timeout.html
+   Location: .\policy-service\test_login_debug.py:11:15
+10	try:
+11	    response = requests.post(url, json=payload, headers=headers)
+12	    print(f"Status Code: {response.status_code}")
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'test'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\test_routing_logic.py:16:11
+15	os.environ["PAYDUNYA_PRIVATE_KEY"] = "test"
+16	os.environ["PAYDUNYA_TOKEN"] = "test"
+17	
+
+--------------------------------------------------
+>> Issue: [B113:request_without_timeout] Call to requests without timeout
+   Severity: Medium   Confidence: Low
+   CWE: CWE-400 (https://cwe.mitre.org/data/definitions/400.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b113_request_without_timeout.html
+   Location: .\policy-service\verify_api.py:14:23
+13	        try:
+14	            response = requests.get(url, headers=headers)
+15	            f.write(f"Status: {response.status_code}\n")
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b608_hardcoded_sql_expressions.html
+   Location: .\policy-service\verify_db.py:14:30
+13	def check_table(table_name):
+14	    exists = cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'").fetchone()
+15	    if exists:
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b608_hardcoded_sql_expressions.html
+   Location: .\policy-service\verify_db.py:16:33
+15	    if exists:
+16	        count = cursor.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
+17	        print(f"✅ {table_name} exists (Rows: {count})")
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'password123'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\verify_pharmacy_flow.py:8:11
+7	EMAIL = "pharmacie@demo.ci"
+8	PASSWORD = "password123"
+9	
+
+--------------------------------------------------
+>> Issue: [B113:request_without_timeout] Call to requests without timeout
+   Severity: Medium   Confidence: Low
+   CWE: CWE-400 (https://cwe.mitre.org/data/definitions/400.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b113_request_without_timeout.html
+   Location: .\policy-service\verify_pharmacy_flow.py:26:14
+25	    try:
+26	        res = requests.post(f"{BASE_URL}/auth/login", json={
+27	            "email": EMAIL,
+28	            "password": PASSWORD
+29	        })
+30	        if res.status_code == 200:
+
+--------------------------------------------------
+>> Issue: [B113:request_without_timeout] Call to requests without timeout
+   Severity: Medium   Confidence: Low
+   CWE: CWE-400 (https://cwe.mitre.org/data/definitions/400.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b113_request_without_timeout.html
+   Location: .\policy-service\verify_pharmacy_flow.py:47:14
+46	    try:
+47	        res = requests.get(f"{BASE_URL}/stats", headers=headers)
+48	        if res.status_code == 200:
+
+--------------------------------------------------
+>> Issue: [B113:request_without_timeout] Call to requests without timeout
+   Severity: Medium   Confidence: Low
+   CWE: CWE-400 (https://cwe.mitre.org/data/definitions/400.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b113_request_without_timeout.html
+   Location: .\policy-service\verify_pharmacy_flow.py:61:14
+60	    try:
+61	        res = requests.post(f"{BASE_URL}/verify-coverage", json={
+62	            "qr_token": "0707070701:POL-123"
+63	        }, headers=headers)
+64	        
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: '0707070701:POL-123'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\verify_pharmacy_flow.py:62:12
+61	        res = requests.post(f"{BASE_URL}/verify-coverage", json={
+62	            "qr_token": "0707070701:POL-123"
+63	        }, headers=headers)
+64	        
+65	        if res.status_code == 200:
+
+--------------------------------------------------
+>> Issue: [B113:request_without_timeout] Call to requests without timeout
+   Severity: Medium   Confidence: Low
+   CWE: CWE-400 (https://cwe.mitre.org/data/definitions/400.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b113_request_without_timeout.html
+   Location: .\policy-service\verify_pharmacy_flow.py:81:14
+80	    try:
+81	        res = requests.post(f"{BASE_URL}/verify-coverage", json={
+82	            "qr_token": "0707070700:POL-INVALID" # Ends with 00 -> Inactive
+83	        }, headers=headers)
+84	        
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: '0707070700:POL-INVALID'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.3/plugins/b105_hardcoded_password_string.html
+   Location: .\policy-service\verify_pharmacy_flow.py:82:12
+81	        res = requests.post(f"{BASE_URL}/verify-coverage", json={
+82	            "qr_token": "0707070700:POL-INVALID" # Ends with 00 -> Inactive
+83	        }, headers=headers)
+84	        
+85	        if res.status_code == 200:
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 19509
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 61
+		Medium: 26
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 12
+		Medium: 27
+		High: 48
+Files skipped (0):

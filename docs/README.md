@@ -1,101 +1,110 @@
 # Wali Documentation
 
-Complete documentation for the Wali micro-insurance platform targeting artisans and pharmacies in Côte d'Ivoire.
+Complete documentation for the Wali Micro-Insurance Platform.
 
-## 📚 Documentation Structure
+---
 
-### 🚀 [Getting Started](./guides/quickstart.md)
-Quick start guide for developers setting up the project locally.
+## 📁 Documentation Structure
 
-### 🏗️ [Architecture](./architecture/)
-Technical architecture and infrastructure documentation.
+```
+docs/
+├── README.md                          # This file
+├── architecture/                      # System design & architecture
+├── development/                       # Development guides
+├── operations/                        # DevOps & operations
+├── security/                          # Security & compliance
+└── whatsapp/                          # WhatsApp integration
+```
 
-| Document | Description |
-|----------|-------------|
-| [Tech Stack](./architecture/tech-stack.md) | Language distribution, frameworks, and standards |
-| [Database Pooling](./architecture/database-pooling.md) | Connection pooling implementation and configuration |
-| [Production Scaling](./architecture/production-scaling.md) | SRE infrastructure for 10,000 concurrent users |
-| [Financial Analytics](./architecture/unified-financial-analytics.md) | Unified financial analytics system |
+---
 
-### 🔒 [Security](./security/)
-Security audits, compliance checklists, and implementation guides.
+## 🏗️ Architecture
 
-| Document | Description |
-|----------|-------------|
-| [Audit Complete](./security/audit-complete.md) | Security audit completion summary |
-| [Audit Implementation](./security/audit-implementation.md) | Complete security testing implementation guide |
-| [CIMA Security Checklist](./security/cima-security-checklist.md) | CIMA regulatory compliance checklist |
-| [OWASP Remediation](./security/owasp-remediation-guide.md) | OWASP Top 10 mitigation strategies |
-| [Final Compliance Report](./security/final-compliance-report.md) | Compliance audit final report |
-
-### 📖 [Guides](./guides/)
-Step-by-step guides for common tasks.
+System design, scaling strategies, and technical architecture.
 
 | Document | Description |
 |----------|-------------|
-| [Quickstart](./guides/quickstart.md) | Developer setup and first run |
-| [Login Enhancements](./guides/login-enhancements.md) | Forgot password & help flow implementation |
-| [Testing](./guides/testing.md) | Testing commands and procedures |
-| [Verification Checklist](./guides/verification-checklist.md) | Admin auth verification steps |
+| [Database Pooling](architecture/database-pooling-guide.md) | Connection pooling configuration |
+| [Production Scaling](architecture/production-scaling.md) | Scaling strategies for production |
+| [Tech Stack](architecture/tech-stack.md) | Technology choices & rationale |
+| [Financial Analytics](architecture/unified-financial-analytics.md) | Admin analytics system design |
 
-### 💬 [WhatsApp](./whatsapp/)
+---
+
+## 💻 Development
+
+Guides for developers working on the platform.
+
+| Document | Description |
+|----------|-------------|
+| [Code Quality](development/CODE_QUALITY_IMPROVEMENTS.md) | Code cleanup & quality standards |
+| [Quick Start](guides/quickstart.md) | Get started with development |
+| [Testing](guides/testing.md) | Testing strategies & tools |
+
+---
+
+## 🚀 Operations
+
+Infrastructure, deployment, and compliance documentation.
+
+| Document | Description |
+|----------|-------------|
+| [Infrastructure & Testing](operations/INFRASTRUCTURE_TESTING_IMPROVEMENTS.md) | Infrastructure hardening |
+| [CIMA Compliance Checklist](operations/cima-compliance-checklist.md) | CIMA regulatory compliance |
+| [Production Checklist](operations/cima-production-checklist.md) | Pre-deployment checklist |
+| [Login Enhancements](guides/login-enhancements.md) | Authentication improvements |
+| [Verification Guide](guides/verification-checklist.md) | Manual testing checklist |
+
+---
+
+## 🔒 Security
+
+Security implementation, compliance, and audit documentation.
+
+| Document | Description |
+|----------|-------------|
+| [Production Security Fixes](security/PRODUCTION_SECURITY_FIXES.md) | Critical security fixes applied |
+| [Final Compliance Report](security/final-compliance-report.md) | 100% CIMA compliance report |
+| [OWASP Remediation](security/owasp-remediation-guide.md) | OWASP Top 10 mitigations |
+| [CIMA Security Checklist](security/cima-security-checklist.md) | Security requirements |
+
+---
+
+## 💬 WhatsApp Integration
+
 WhatsApp Business API integration documentation.
 
 | Document | Description |
 |----------|-------------|
-| [OTP Setup](./whatsapp/otp-setup.md) | WhatsApp OTP configuration |
-| [OTP Summary](./whatsapp/otp-summary.md) | WhatsApp OTP implementation summary |
-| [Ivory Coast Business Logic](./whatsapp/ivory-coast-business-logic.md) | CI-specific compliance constraints |
-| [Service Readme](./whatsapp/service-readme.md) | WhatsApp service architecture |
-| [Redis Config](./whatsapp/redis-config.md) | Redis setup for WhatsApp sessions |
-
-### 🔧 [Operations](./operations/)
-Production operations, load testing, and infrastructure guides.
-
-| Document | Description |
-|----------|-------------|
-| [Pooling Guide](./operations/pooling-guide.md) | Database connection pooling guide |
-| [CIMA Production Checklist](./operations/cima-production-checklist.md) | Pre-production checklist |
-
-## 🏛️ Project Architecture
-
-```
-wali-backend/
-├── typescript-apps/     # All TypeScript code
-│   ├── pwa/            # Next.js 16 PWA
-│   └── notification-service/
-├── python-services/     # All Python code
-│   ├── policy-service/ # Insurance policy management
-│   ├── claims-service/ # Claims processing
-│   ├── compliance-service/ # Audit & reporting
-│   └── identity-service/ # Authentication
-├── go-services/         # All Go code
-│   └── payment-service/ # Mobile money integration
-├── database/            # Migrations and schemas
-├── shared/              # Cross-language contracts
-├── infrastructure/      # Docker, Fly.io configs
-└── docs/               # This documentation
-```
-
-## 🌍 Language Support
-
-- **FR**: French (primary)
-- **DY**: Dioula (Jula)
-- **BA**: Baoulé
-
-## 🔐 Compliance
-
-- **CIMA**: Insurance regulatory compliance
-- **COSUMAF**: Financial authority reporting
-- **Loi n°2013-450**: Data protection law
-- **TRACFIN**: Anti-money laundering
-
-## 📞 Support
-
-- **Technical Support**: support@wali.ci
-- **Security Issues**: security@wali.ci
-- **Emergency**: 130 (toll-free)
+| [Service Overview](whatsapp/service-readme.md) | WhatsApp service documentation |
+| [OTP Setup](whatsapp/otp-setup.md) | One-time password configuration |
+| [OTP Summary](whatsapp/otp-summary.md) | OTP implementation summary |
+| [Redis Config](whatsapp/redis-config.md) | Redis session configuration |
+| [Ivory Coast Logic](whatsapp/ivory-coast-business-logic.md) | Localized business rules |
 
 ---
 
-*Last Updated: 2026-02-18*
+## 🔗 Quick Links
+
+- [Main Project README](../README.md)
+- [API Documentation](https://api.wali.ci/docs)
+- [Security Audit Scripts](../security-audit/)
+- [Test Suites](../tests/)
+- [Infrastructure](../infrastructure/)
+
+---
+
+## 📝 Other Resources
+
+| Location | Description |
+|----------|-------------|
+| `../data/` | JSON data files & mock data |
+| `../logs/` | Application logs & debug output |
+| `../scripts/` | Automation & utility scripts |
+| `../tests/` | Unit, integration & load tests |
+| `../security-audit/` | Security audit tools |
+
+---
+
+**Maintained by:** Wali Development Team  
+**Last Updated:** 2026-02-21

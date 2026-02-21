@@ -59,14 +59,31 @@ class CoverageSubscription(Base):
     )
 
     def generate_qr_token(self):
-        """Generate a secure, unique QR token."""
-        import secrets
+        """Generate a secure, unique QR token (2-min JWT for Pharmacy)."""
+        import jwt
+        import uuid
+        import hashlib
         from datetime import datetime, timedelta
+        from app.core.config import get_settings
         
-        # Simple secure token. In prod, maybe signed JWT.
-        self.qr_token = secrets.token_urlsafe(32)
-        # Expires in 1 year for now, or tied to policy end_date
-        self.qr_expires_at = self.end_date if self.end_date else datetime.utcnow() + timedelta(days=365)
+        settings = get_settings()
+        
+        # 2-minute token for max security against replay attacks
+        self.qr_expires_at = datetime.utcnow() + timedelta(minutes=2)
+        jti = str(uuid.uuid4())
+        
+        payload = {
+            "sub": str(self.id),
+            "jti": jti,
+            "exp": self.qr_expires_at,
+            "type": "pharmacy_qr"
+        }
+        
+        self.qr_token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+        
+        # Store verification hash to prevent replay of the same token
+        self.verification_hash = hashlib.sha256(self.qr_token.encode()).hexdigest()
+        
         return self.qr_token
 
 Policy = CoverageSubscription

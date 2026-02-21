@@ -1,0 +1,19 @@
+{
+  "Claim": [
+    {
+      "user_id": "2641eed6-6b92-4623-8f9b-6c2edf7b60df",
+      "policy_id": "2eef31d3-cd5d-4d97-a1b4-f0689f0e60a4",
+      "claim_number": "CLM-TEST-001",
+      "claim_type": "health",
+      "description": "Test claim persistence",
+      "claimed_amount": 25000,
+      "image_hashes": [
+        "test_hash"
+      ],
+      "status": "submitted",
+      "id": "8cb55cdc-bf2c-441b-a626-c3de6d4166c2",
+      "created_at": "2026-01-29T12:26:31.267093",
+      "updated_at": "2026-01-29T12:26:31.267093"
+    }
+  ]
+}

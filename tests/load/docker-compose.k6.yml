@@ -1,0 +1,31 @@
+version: '3.8'
+services:
+  k6:
+    image: grafana/k6:latest
+    volumes:
+      - ./scenarios:/tests
+      - ./shared:/shared
+      - ./configs:/configs
+    environment:
+      - K6_OUT=influxdb=http://influxdb:8086/k6
+      - API_HOST=http://host.docker.internal:8000
+      - TEST_ENV=load
+    # Keep container alive to run ad-hoc commands or override via CLI
+    command: tail -f /dev/null
+
+  influxdb:
+    image: influxdb:1.8
+    ports:
+      - "8086:8086"
+    environment:
+      - INFLUXDB_DB=k6
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - influxdb

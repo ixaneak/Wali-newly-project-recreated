@@ -55,11 +55,39 @@ async def run_periodic_fraud_checks(self):
             # 2. Claims at same time from different phones (impossible)
             # 3. Round number amounts (potential fraud)
             
-            # TODO: Implement pattern detection
+            # Pattern detection implementation
+            patterns_found = []
+            
+            # Pattern 1: Multiple claims from same device
+            device_counts = {}
+            for claim in recent_claims:
+                device = getattr(claim, 'device_fingerprint', None)
+                if device:
+                    device_counts[device] = device_counts.get(device, 0) + 1
+            
+            for device, count in device_counts.items():
+                if count > 3:
+                    patterns_found.append({
+                        "type": "multiple_claims_same_device",
+                        "device": device[:8] + "...",
+                        "count": count,
+                        "severity": "high"
+                    })
+            
+            # Pattern 2: Round number amounts (potential fraud indicator)
+            round_amounts = [c for c in recent_claims 
+                           if c.amount % 1000 == 0 and c.amount > 10000]
+            if len(round_amounts) > 2:
+                patterns_found.append({
+                    "type": "suspicious_round_amounts",
+                    "count": len(round_amounts),
+                    "severity": "medium"
+                })
             
             return {
                 "claims_checked": len(recent_claims),
-                "patterns_found": 0
+                "patterns_found": len(patterns_found),
+                "patterns": patterns_found
             }
             
         except Exception as e:

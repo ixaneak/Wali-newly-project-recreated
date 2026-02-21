@@ -1,4 +1,3 @@
-print("DEBUG: Executing app/routes/policies.py module")
 """
 Enrollment API Routes (was: policies.py)
 
@@ -32,7 +31,7 @@ class EnrollmentCreateRequest(BaseModel):
     user_id: str
     partner_product_id: str = Field(..., description="Product code from partner catalog (e.g. NSIA-HEALTH-01)")
     partner_product_config: dict = Field(..., description="Coverage details defined by partner insurer")
-    # partner_quoted_amount: int = Field(..., gt=0, description="Price set by partner insurer (XOF)") -- REMOVED for SaaS Compliance
+    # Note: partner_quoted_amount field removed - pricing determined by partner insurer
     payment_frequency: PaymentFrequency
     is_test: bool = False
 
@@ -137,7 +136,7 @@ def create_enrollment(
             partner_id=partner_id,
             partner_product_id=enrollment_request.partner_product_id,
             partner_product_config=enrollment_request.partner_product_config,
-            # partner_quoted_amount=enrollment_request.partner_quoted_amount, -- REMOVED
+            # Note: partner_quoted_amount removed per SaaS compliance - partner sets pricing
             payment_frequency=enrollment_request.payment_frequency,
             is_test=enrollment_request.is_test,
         )
@@ -321,7 +320,7 @@ def get_enrollment_certificate(
 
 # ==================== User Policy Routes (Legacy/Convenience) ====================
 
-print("DEBUG: Defining policies_router")
+# Router initialized
 policies_router = APIRouter(prefix="/api/v1/policies", tags=["policies"])
 
 @policies_router.get("/my-policies", response_model=List[EnrollmentResponse])

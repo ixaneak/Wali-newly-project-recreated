@@ -17,10 +17,17 @@ try:
     # PROD: Fly.io provides DATABASE_URL
     database_url = settings.database_url
     
-    if database_url and database_url.startswith("postgres"):
-        database_url = database_url.replace("postgres://", "postgresql://")
+    if settings.use_mock_db:
+        logger.info("Using mock database as configured in settings")
+        USE_MOCK_DB = True
         
-    engine = create_engine(
+        def get_db():
+            yield MockSession()
+    else:    
+        if database_url and database_url.startswith("postgres"):
+            database_url = database_url.replace("postgres://", "postgresql://")
+            
+        engine = create_engine(
         database_url,
         pool_pre_ping=True,
         pool_size=10,
@@ -36,9 +43,10 @@ except Exception as e:
         raise
     USE_MOCK_DB = True
 
-def get_db() -> Session:
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+if not USE_MOCK_DB:
+    def get_db() -> Session:
+        db = SessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()

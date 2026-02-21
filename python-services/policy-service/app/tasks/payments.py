@@ -74,7 +74,7 @@ async def settle_pharmacy_claim(self, claim_id: str):
         claim_id: UUID of the approved claim
     """
     from app.models.base import AsyncSessionLocal
-    from app.services.payment_orchestrator import PaymentOrchestrator
+    from app.services.payments.orchestrator import PaymentOrchestrator
     
     claim_uuid = uuid.UUID(claim_id)
     logger.info(f"Starting settlement for claim {claim_id}")
@@ -108,7 +108,7 @@ async def settle_pharmacy_claim(self, claim_id: str):
             logger.info(f"Settlement amount for claim {claim_id}: {settlement_amount} XOF")
             
             # 4. Call PaymentOrchestrator
-            orchestrator = PaymentOrchestrator()
+            orchestrator = PaymentOrchestrator(db)
             
             try:
                 # Get pharmacy details
@@ -121,12 +121,14 @@ async def settle_pharmacy_claim(self, claim_id: str):
                 if not pharmacy:
                     raise ValueError(f"Pharmacy not found: {claim.pharmacy_id}")
                 
+                user_reference_id = str(claim.artisan_id) if hasattr(claim, 'artisan_id') else str(pharmacy.id)
+                
                 # Initiate settlement
-                settlement_result = await orchestrator.settle_pharmacy(
-                    pharmacy_phone=pharmacy.payment_phone or pharmacy.phone,
+                settlement_result = await orchestrator.disburse_with_retry(
+                    user_id=user_reference_id,
+                    phone=pharmacy.payment_phone or pharmacy.phone,
                     amount=float(settlement_amount),
-                    reference=f"WALI-{claim.short_id}",
-                    description=f"Remboursement sinistre {claim.short_id}"
+                    reference=f"WALI-{claim.short_id}"
                 )
                 
                 if settlement_result["status"] == "success":
@@ -286,8 +288,8 @@ async def _send_pharmacy_notification(
             ref=reference,
             patient_phone=patient_phone[-8:]  # Mask full number
         )
-        # TODO: Implement actual WhatsApp API call
-        logger.info(f"WhatsApp to pharmacy {pharmacy_phone}: {message[:100]}...")
+        # WhatsApp integration pending - logged for audit trail
+        logger.info(f"[WhatsApp Pending] To pharmacy {pharmacy_phone}: {message[:50]}...")
     except Exception as e:
         logger.error(f"Failed to send pharmacy notification: {e}")
 
@@ -303,8 +305,8 @@ async def _send_artisan_settlement_notification(
             amount=amount,
             ref=short_id
         )
-        # TODO: Implement actual WhatsApp API call
-        logger.info(f"WhatsApp to artisan {artisan_phone}: {message[:100]}...")
+        # WhatsApp integration pending - logged for audit trail  
+        logger.info(f"[WhatsApp Pending] To artisan {artisan_phone}: {message[:50]}...")
     except Exception as e:
         logger.error(f"Failed to send artisan notification: {e}")
 
@@ -312,24 +314,63 @@ async def _send_artisan_settlement_notification(
 async def _send_whatsapp_notification(phone: str, message: str):
     """Send WhatsApp notification."""
     try:
-        # TODO: Implement actual WhatsApp API call
-        logger.info(f"WhatsApp to {phone}: {message[:100]}...")
+        # WhatsApp integration pending - logged for audit trail
+        logger.info(f"[WhatsApp Pending] To {phone}: {message[:50]}...")
     except Exception as e:
         logger.error(f"Failed to send WhatsApp notification: {e}")
 
 
 async def _alert_admin_settlement_failure(claim: Claim, error: str):
-    """Alert admin on settlement failure."""
-    logger.critical(
-        f"SETTLEMENT_FAILURE|"
-        f"claim_id={claim.id}|"
-        f"amount={claim.amount}|"
-        f"phone={claim.artisan_phone}|"
-        f"error={error}|"
-        f"MANUAL_RECONCILIATION_REQUIRED"
-    )
-    # TODO: Send actual alert (SMS/email/Slack)
-    # This is revenue-critical - admin must be notified immediately
+    """
+    Alert admin on settlement failure.
+    CRITICAL: This is revenue-critical - admin must be notified immediately
+    """
+    import os
+    
+    alert_payload = {
+        "level": "CRITICAL",
+        "type": "SETTLEMENT_FAILURE",
+        "claim_id": str(claim.id),
+        "amount": str(claim.amount),
+        "artisan_phone": claim.artisan_phone,
+        "error": error,
+        "timestamp": datetime.utcnow().isoformat(),
+        "action_required": "MANUAL_RECONCILIATION_REQUIRED"
+    }
+    
+    # Log critically - this will be picked up by log monitoring
+    logger.critical(f"SETTLEMENT_FAILURE_ALERT: {alert_payload}")
+    
+    # Attempt to send immediate alert via configured channels
+    try:
+        # Check if admin notification URL is configured
+        admin_webhook = os.getenv("ADMIN_ALERT_WEBHOOK_URL")
+        if admin_webhook:
+            import aiohttp
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    admin_webhook, 
+                    json=alert_payload,
+                    timeout=aiohttp.ClientTimeout(total=5)
+                ):
+                    logger.info("Settlement failure alert sent to admin webhook")
+        
+        # Check if SMS alert is configured for critical failures
+        admin_phone = os.getenv("ADMIN_ALERT_PHONE")
+        if admin_phone:
+            # Import SMS service if available
+            try:
+                from app.services.notification_service import send_sms
+                await send_sms(
+                    phone=admin_phone,
+                    message=f"URGENT: Settlement failed for claim {claim.id[:8]}. Amount: {claim.amount}. Check logs immediately."
+                )
+            except ImportError:
+                logger.warning("SMS notification service not available for critical alerts")
+                
+    except Exception as e:
+        # Don't let alert failure mask the original error
+        logger.error(f"Failed to send admin alert: {e}")
 
 
 # Export tasks

@@ -7,16 +7,20 @@ import os
 import time
 
 # Configure logging with structured format
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Configure logging with structured format (ARTCI compliant JSON)
+from app.core.logging import setup_structured_logging
+setup_structured_logging()
 logger = logging.getLogger(__name__)
+
+# Initialize Sentry
+from app.core.sentry import init_sentry
+init_sentry()
 
 from app.core.config import get_settings
 from app.core.database import engine, Base
 from app.core.error_handlers import register_exception_handlers
 from app.routes import policies, claims, photos, admin_users, compliance, pharmacy, paydunya, auth, sar as sar_routes, analytics, admin_auth, mfa
+from app.api import ussd, legal, health
 from app.whatsapp.webhook_handler import router as whatsapp_router, init_webhook_handler
 from app.whatsapp.state_machine import StateMachine
 from app.whatsapp.client import WhatsAppClient
@@ -119,6 +123,9 @@ app.include_router(analytics.router)
 app.include_router(admin_auth.router)
 app.include_router(mfa.router)
 app.include_router(whatsapp_router)
+app.include_router(ussd.router)
+app.include_router(legal.router)
+app.include_router(health.router)
 
 logger.info("All routes registered successfully")
 

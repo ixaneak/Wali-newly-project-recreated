@@ -9,10 +9,11 @@ import requests
 
 # Files
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(os.path.dirname(BASE_DIR))
 STATE_FILE = os.path.join(BASE_DIR, "e2e_state.json")
-POLICY_MS_DIR = os.path.join(BASE_DIR, "services", "policy-service")
-CLAIMS_MS_DIR = os.path.join(BASE_DIR, "services", "claims-service")
-PAYMENT_MS_DIR = os.path.join(BASE_DIR, "services", "payment-service")
+POLICY_MS_DIR = os.path.join(ROOT_DIR, "python-services", "policy-service")
+CLAIMS_MS_DIR = os.path.join(ROOT_DIR, "python-services", "claims-service")
+PAYMENT_MS_DIR = os.path.join(ROOT_DIR, "go-services", "payment-service")
 
 # Env Vars for Subprocesses
 ENV_POLICY = os.environ.copy()
@@ -27,6 +28,7 @@ ENV_CLAIMS["JWT_SECRET"] = "test"
 ENV_PAYMENT = os.environ.copy()
 ENV_PAYMENT["PORT"] = "8082"
 ENV_PAYMENT["MOCK_PAYMENT_PROVIDERS"] = "true"
+ENV_PAYMENT["JWT_SECRET"] = "dev-secret-change-in-production"
 
 
 def save_state(data):
@@ -44,35 +46,39 @@ def step_create_policy():
     sys.path.append(POLICY_MS_DIR)
     
     # Configure DB
+    from app.core.config import get_settings
+    settings = get_settings()
+    settings.use_mock_db = True
     from app.core import database
-    database.USE_MOCK_DB = True
     from app.core.database import get_db
     from app.services.policy_service import PolicyService
-    from app.models.policy import CoverageType, PaymentFrequency
+    from app.models.policy import ProductType, PaymentFrequency
     
     db = next(get_db())
     user_id = str(uuid.uuid4())
     
-    policy = PolicyService.create_policy(
-        db, user_id, CoverageType.HEALTH, {"max_coverage_amount": 50000}, PaymentFrequency.MONTHLY
+    policy = PolicyService.create_enrollment(
+        db, user_id, "NSIA", ProductType.HEALTH.value, {"coverage_amount": 50000}, PaymentFrequency.MONTHLY, True
     )
     
     print(f"Policy Created: {policy.id}")
-    save_state({"policy_id": str(policy.id), "user_id": user_id, "amount": policy.premium_amount})
+    save_state({"policy_id": str(policy.id), "user_id": user_id, "amount": policy.partner_quoted_amount})
 
 def step_activate_policy():
     print("[Step 3] Activating Policy (Python)...")
     state = load_state()
     sys.path.append(POLICY_MS_DIR)
     
+    from app.core.config import get_settings
+    settings = get_settings()
+    settings.use_mock_db = True
     from app.core import database
-    database.USE_MOCK_DB = True
     from app.core.database import get_db
     from app.services.policy_service import PolicyService
     from app.models.policy import PolicyStatus
     
     db = next(get_db())
-    policy = PolicyService.activate_policy(db, state["policy_id"], state["tx_ref"])
+    policy = PolicyService.confirm_enrollment(db, state["policy_id"], state["tx_ref"])
     
     if policy.status == PolicyStatus.ACTIVE:
         print("Policy Activated Successfully")
@@ -84,20 +90,23 @@ def step_create_claim():
     print("[Step 5] Creating Claim (Python)...")
     state = load_state()
     sys.path.append(CLAIMS_MS_DIR)
-    
+    import os
+    os.environ["JWT_SECRET"] = "test"
+    from app.core.config import get_settings
+    settings = get_settings()
+    settings.use_mock_db = True
     from app.core import database
-    database.USE_MOCK_DB = True
     from app.core.database import get_db
-    from app.models.claim import Claim, CoverageType, ClaimStatus
+    from app.models.claim import Claim, ClaimStatus
     
     db = next(get_db())
     c = Claim(
-        user_id=uuid.UUID(state["user_id"]),
-        policy_id=uuid.UUID(state["policy_id"]),
-        claim_number="CLM-E2E-001",
-        claim_type=CoverageType.HEALTH,
+        user_id=state["user_id"],
+        subscription_id=state["policy_id"],
+        incident_number="CLM-E2E-001",
+        incident_type="health",
         description="E2E Flow Claim",
-        claimed_amount=10000,
+        reported_amount=10000,
         image_hashes=["hash1", "hash2"],
         status=ClaimStatus.SUBMITTED
     )
@@ -145,6 +154,9 @@ def run_orchestrator():
         state = load_state()
         
         # Call Payment API
+        import jwt, uuid
+        token = jwt.encode({"sub": state["user_id"], "role": "USER", "exp": int(time.time()) + 3600}, "dev-secret-change-in-production", algorithm="HS256")
+        
         print("Initiating Payment...")
         resp = requests.post("http://localhost:8082/api/v1/payments/initiate", json={
             "user_id": state["user_id"],
@@ -152,8 +164,11 @@ def run_orchestrator():
             "amount": state["amount"],
             "currency": "XOF",
             "phone": "07000000",
-            "provider": "orange"
-        })
+            "provider": "orange",
+            "idempotency_key": str(uuid.uuid4())
+        }, headers={"Authorization": f"Bearer {token}"})
+        if resp.status_code >= 400:
+            print(f"Payment API Error: {resp.text}")
         resp.raise_for_status()
         data = resp.json()
         tx_ref = data["transaction_ref"]

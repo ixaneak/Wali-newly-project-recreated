@@ -9,8 +9,8 @@ TRACFIN = Traitement du Renseignement et Action Contre les
 """
 from datetime import datetime
 from typing import List, Optional
-import xml.etree.ElementTree as ET
-from xml.dom import minidom
+import defusedxml.ElementTree as ET
+from defusedxml import minidom
 
 
 def mask_phone(phone: str) -> str:
