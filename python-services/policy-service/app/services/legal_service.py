@@ -17,7 +17,8 @@ class LegalService:
                 rccm="CI-ABJ-123456",
                 cc="1234567 A",
                 email_dpo="dpo@wali.ci",
-                artci_authorization="ARTCI-2025-001"
+                artci_authorization="ARTCI-2025-001",
+                support_phone="+225 0101010101"
             )
         return config
 

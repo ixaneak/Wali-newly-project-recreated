@@ -67,6 +67,7 @@ Security implementation, compliance, and audit documentation.
 | [Final Compliance Report](security/final-compliance-report.md) | 100% CIMA compliance report |
 | [OWASP Remediation](security/owasp-remediation-guide.md) | OWASP Top 10 mitigations |
 | [CIMA Security Checklist](security/cima-security-checklist.md) | Security requirements |
+| [Audit Complete](security/audit-complete.md) | Audit completion report |
 
 ---
 

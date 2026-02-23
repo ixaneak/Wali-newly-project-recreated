@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     tech_fee_percentage: int = 2
     tax_exemption_start_date: str = "2026-01-01"
     
+    # Africa's Talking
+    at_api_key: str | None = None
+    at_username: str | None = None
+    
     # Environment
     environment: str = "development"
     log_level: str = "INFO"

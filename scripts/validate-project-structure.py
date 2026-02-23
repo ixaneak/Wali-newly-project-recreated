@@ -150,49 +150,58 @@ def check_docs_in_readme() -> List[Tuple[str, str]]:
 
 def print_report(issues: List[Tuple[str, str]]) -> None:
     """Print validation report."""
-    if not issues:
-        print("✅ Project structure validation passed!")
-        return
-    
-    print("❌ Project structure issues found:\n")
-    
-    categories = {
-        'Root Files': [],
-        'Duplicates': [],
-        'Missing Folders': [],
-        'Documentation': [],
-        'Other': [],
-    }
-    
-    for file, message in issues:
-        if 'root' in message.lower():
-            categories['Root Files'].append((file, message))
-        elif 'duplicate' in message.lower():
-            categories['Duplicates'].append((file, message))
-        elif 'missing' in message.lower():
-            categories['Missing Folders'].append((file, message))
-        elif 'README' in message:
-            categories['Documentation'].append((file, message))
-        else:
-            categories['Other'].append((file, message))
-    
-    for category, items in categories.items():
-        if items:
-            print(f"\n{category}:")
-            for file, message in items:
-                print(f"  - {message}")
-    
-    print(f"\n{'='*60}")
-    print(f"Total issues: {len(issues)}")
-    print("\nTo fix these issues:")
-    print("  1. Move files to appropriate folders")
-    print("  2. Remove duplicates")
-    print("  3. Update docs/README.md with new documentation")
+    with open("validation_report.txt", "w", encoding="utf-8") as f:
+        if not issues:
+            msg = "Project structure validation passed!"
+            print(msg)
+            f.write(msg + "\n")
+            return
+        
+        msg = "Project structure issues found:\n"
+        print(msg)
+        f.write(msg + "\n")
+        
+        categories = {
+            'Root Files': [],
+            'Duplicates': [],
+            'Missing Folders': [],
+            'Documentation': [],
+            'Other': [],
+        }
+        
+        for file, message in issues:
+            if 'root' in message.lower():
+                categories['Root Files'].append((file, message))
+            elif 'duplicate' in message.lower():
+                categories['Duplicates'].append((file, message))
+            elif 'missing' in message.lower():
+                categories['Missing Folders'].append((file, message))
+            elif 'README' in message:
+                categories['Documentation'].append((file, message))
+            else:
+                categories['Other'].append((file, message))
+        
+        for category, items in categories.items():
+            if items:
+                cat_msg = f"\n{category}:"
+                print(cat_msg)
+                f.write(cat_msg + "\n")
+                for file, message in items:
+                    item_msg = f"  - {message}"
+                    print(item_msg)
+                    f.write(item_msg + "\n")
+        
+        f.write(f"\n{'='*60}\n")
+        f.write(f"Total issues: {len(issues)}\n")
+        f.write("\nTo fix these issues:\n")
+        f.write("  1. Move files to appropriate folders\n")
+        f.write("  2. Remove duplicates\n")
+        f.write("  3. Update docs/README.md with new documentation\n")
 
 
 def main():
     """Main validation function."""
-    print("🔍 Validating Wali project structure...\n")
+    print("Validating Wali project structure...\n")
     
     all_issues = []
     

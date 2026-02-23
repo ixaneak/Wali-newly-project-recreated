@@ -4,6 +4,10 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname;
 
+    // 0. Redirect Root to Login
+    if (path === '/') {
+        return NextResponse.redirect(new URL('/login', request.url));
+    }
     // 1. Protect Admin Routes
     if (path.startsWith('/admin')) {
         // Allow public admin routes (login page)
@@ -34,7 +38,7 @@ export function middleware(request: NextRequest) {
         // For PWA, we typically use localStorage which middleware can't access
         // If you want cookie-based auth for dashboard, implement similar to admin
         const token = request.cookies.get('wali_user_token')?.value;
-        
+
         // Allow access if token exists (validation happens in API)
         if (!token && path !== '/dashboard/login') {
             // Uncomment to enforce auth on dashboard
@@ -51,7 +55,7 @@ export function middleware(request: NextRequest) {
 
         // Check for pharmacy auth
         const token = request.cookies.get('pharmacy_token')?.value;
-        
+
         if (!token && path !== '/pharmacy/login') {
             return NextResponse.redirect(new URL('/pharmacy/login', request.url));
         }
@@ -62,6 +66,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
+        '/',
         '/admin/:path*',
         '/dashboard/:path*',
         '/pharmacy/:path*',

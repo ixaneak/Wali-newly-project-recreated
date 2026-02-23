@@ -16,6 +16,7 @@ class LegalConfig(Base):
     cc = Column(String(100), nullable=False)
     email_dpo = Column(String(255), nullable=False)
     artci_authorization = Column(String(255), nullable=False)
+    support_phone = Column(String(50), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

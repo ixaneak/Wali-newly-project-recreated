@@ -17,6 +17,7 @@ from .compliance_list import ComplianceListEntry
 from .legal import LegalConfig, LegalTemplate, DocumentType
 from .compliance import DataTransferLog
 from .user_mapping import UserMapping
+from .ussd import USSDSessionLog
 
 __all__ = [
     # Core enrollment model (was: Policy)
