@@ -1,83 +1,16 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-.venv
-*.egg-info/
-dist/
-build/
+﻿# Service account keys & credentials
+service-account*.json
+*-service-account.json
+firebase-adminsdk-*.json
+google-credentials.json
+credentials.json
 
-# Node
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.npm
-.node_repl_history
-
-# Go
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-*.test
-*.out
-vendor/
-
-# Environment
+# Environment variables
 .env
 .env.local
-.env.*.local
+.env.production
+*.env
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Docker
-docker-compose.override.yml
-
-# Logs
-logs/
-*.log
-
-# Database
-*.db
-*.sqlite
-
-# MinIO/S3
-minio_data/
-
-# Secrets
-*.pem
-*.key
-*.crt
+# Secrets directories
 secrets/
-
-# Testing
-.coverage
-htmlcov/
-.pytest_cache/
-coverage/
-
-# Temporary
-tmp/
-temp/
-*.tmp
-
-# Mock Data
-mock_db.json
-claims_mock_db.json
-e2e_state.json
-
-# Logs folder
-logs/
+credentials/
